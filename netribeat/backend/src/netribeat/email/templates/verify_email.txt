@@ -1,0 +1,14 @@
+Subject: Your NetriBeat verification code
+Hello $name,
+
+Your NetriBeat verification code is:
+
+    $code
+
+Enter it on the verification page to activate your account. The code expires in
+$minutes minutes and can be used once.
+
+If you didn't create a NetriBeat account, you can ignore this email. No account
+will be created without this code.
+
+— NetriBeat

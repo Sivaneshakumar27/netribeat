@@ -1,0 +1,9 @@
+Subject: Your NetriBeat account is active
+Hello $name,
+
+Your NetriBeat account for $email is now active. You can sign in here:
+$login_url
+
+For your security we never send passwords by email.
+
+— NetriBeat

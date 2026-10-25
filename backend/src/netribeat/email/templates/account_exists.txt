@@ -1,0 +1,12 @@
+Subject: Someone tried to register with your email
+Hello,
+
+Someone (possibly you) tried to create a new NetriBeat account with this email
+address, but an account already exists for it.
+
+If you've forgotten your password, use "Forgot password?" on the sign-in page:
+$login_url
+
+If this wasn't you, no action is needed. Your account has not been changed.
+
+— NetriBeat

@@ -1,0 +1,123 @@
+# Production stack for a single Linux server with a public IP and a domain.
+#   cd infra
+#   cp .env.production.example .env.production   # fill it in
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Only Caddy publishes ports (80/443). PostgreSQL and Redis stay on the private network.
+name: netribeat
+
+x-api-env: &api-env
+  ENVIRONMENT: production
+  DATABASE_URL: postgresql+asyncpg://netribeat:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/netribeat
+  REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD}@redis:6379/0
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+  OTP_PEPPER: ${OTP_PEPPER:?set OTP_PEPPER}
+  FRONTEND_BASE_URL: https://${DOMAIN:?set DOMAIN}
+  CORS_ORIGINS: https://${DOMAIN}
+  COOKIE_SECURE: "true"
+  EMAIL_BACKEND: smtp
+  EMAIL_FROM: ${EMAIL_FROM:?set EMAIL_FROM}
+  SMTP_HOST: ${SMTP_HOST:?set SMTP_HOST}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USERNAME: ${SMTP_USERNAME:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+  SMTP_SSL: ${SMTP_SSL:-false}
+  PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-12}
+  HIBP_CHECK_ENABLED: ${HIBP_CHECK_ENABLED:-true}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  JOB_BACKEND: arq
+  STORAGE_DIR: /data/storage
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: netribeat
+      POSTGRES_DB: netribeat
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netribeat -d netribeat"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    restart: unless-stopped
+    environment: *api-env
+    volumes:
+      - storage:/data/storage   # uploaded recordings (opaque file names)
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  # Background analysis (Arq). Scale with: docker compose ... up -d --scale worker=2
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    restart: unless-stopped
+    environment: *api-env
+    command: ["arq", "netribeat.sessions.worker.WorkerSettings"]
+    healthcheck:
+      test: ["CMD", "arq", "--check", "netribeat.sessions.worker.WorkerSettings"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      api: { condition: service_healthy }
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+      API_UPSTREAM: api:8000
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data        # TLS certificates — keep this volume
+      - caddy_config:/config
+    depends_on:
+      api: { condition: service_healthy }
+
+  # Daily housekeeping: expire codes, delete stale sign-ups and dead sessions.
+  cleanup:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    restart: unless-stopped
+    environment: *api-env
+    command: ["sh", "-c", "while true; do netribeat cleanup; sleep 86400; done"]
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  storage:
+  caddy_data:
+  caddy_config:
