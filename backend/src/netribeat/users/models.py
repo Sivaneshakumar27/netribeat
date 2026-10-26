@@ -23,7 +23,7 @@ class HrMaxMethod(StrEnum):
     MANUAL = "manual"
 
 
-class Sex(StrEnum):
+class Gender(StrEnum):
     FEMALE = "female"
     MALE = "male"
     OTHER = "other"
@@ -84,7 +84,7 @@ class User(Base):
     hr_max_method: Mapped[HrMaxMethod | None] = mapped_column(_enum(HrMaxMethod, "hr_max_method"))
     hr_max_manual: Mapped[int | None]
     # Subject details shown in the HRV report header (all optional)
-    sex: Mapped[Sex | None] = mapped_column(_enum(Sex, "sex"))
+    gender: Mapped[Gender | None] = mapped_column(_enum(Gender, "gender"))
     height_cm: Mapped[int | None]
     weight_kg: Mapped[float | None]
     hr_rest: Mapped[int | None]

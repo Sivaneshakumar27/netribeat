@@ -44,7 +44,7 @@ async def update_me(
         age=body.age,
         fields_set=set(body.model_fields_set),
         extra={
-            "sex": body.sex,
+            "gender": body.gender,
             "height_cm": body.height_cm,
             "weight_kg": body.weight_kg,
             "hr_rest": body.hr_rest,

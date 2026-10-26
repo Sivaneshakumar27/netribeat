@@ -89,7 +89,7 @@ class UserOut(ApiModel):
     has_password: bool
     is_active: bool
     age: int | None
-    sex: str | None = None
+    gender: str | None = None
     height_cm: int | None = None
     weight_kg: float | None = None
     hr_rest: int | None = None

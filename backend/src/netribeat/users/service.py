@@ -32,7 +32,7 @@ def to_user_out(user: User) -> dict[str, object]:
         "has_password": user.has_password,
         "is_active": user.is_active,
         "age": user.age,
-        "sex": user.sex.value if user.sex else None,
+        "gender": user.gender.value if user.gender else None,
         "height_cm": user.height_cm,
         "weight_kg": user.weight_kg,
         "hr_rest": user.hr_rest,
@@ -77,7 +77,7 @@ class UserService:
             actor.last_name = last_name
         if "age" in fields_set:
             actor.age = age
-        for key in ("sex", "height_cm", "weight_kg", "hr_rest"):
+        for key in ("gender", "height_cm", "weight_kg", "hr_rest"):
             if key in fields_set and extra is not None:
                 setattr(actor, key, extra.get(key))
         audit.record(

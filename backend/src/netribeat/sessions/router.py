@@ -237,7 +237,7 @@ async def get_report(
     files = list(await service.files(session.id))
     hr_max = (result.metrics.get("hrMax") or {}).get("value")
     subject = {
-        "sex": owner.sex.value if owner.sex else None,
+        "gender": owner.gender.value if owner.gender else None,
         "age": session.age,
         "height_cm": owner.height_cm,
         "weight_kg": owner.weight_kg,

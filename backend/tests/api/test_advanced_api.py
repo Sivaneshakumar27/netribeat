@@ -87,7 +87,7 @@ async def test_pdf_starts_with_hrv_results_page(
     await client.patch(
         "/api/v1/users/me",
         headers=h,
-        json={"sex": "female", "heightCm": 180, "weightKg": 78, "hrRest": 60},
+        json={"gender": "female", "heightCm": 180, "weightKg": 78, "hrRest": 60},
     )
     s = await up(client, h, "D1BLHR_RR.csv", (RR / "D1BLHR_RR.csv").read_bytes(), age="31")
     pdf = (await client.get(f"{S}/{s['id']}/report", headers=h)).content
@@ -101,16 +101,16 @@ async def test_profile_subject_fields(client: httpx.AsyncClient, db: AsyncSessio
     r = await client.patch(
         "/api/v1/users/me",
         headers=h,
-        json={"sex": "female", "heightCm": 180, "weightKg": 78.5, "hrRest": 60},
+        json={"gender": "female", "heightCm": 180, "weightKg": 78.5, "hrRest": 60},
     )
     assert r.status_code == 200
-    assert {k: r.json()[k] for k in ("sex", "heightCm", "weightKg", "hrRest")} == {
-        "sex": "female",
+    assert {k: r.json()[k] for k in ("gender", "heightCm", "weightKg", "hrRest")} == {
+        "gender": "female",
         "heightCm": 180,
         "weightKg": 78.5,
         "hrRest": 60,
     }
-    for bad in ({"heightCm": 40}, {"weightKg": 500}, {"hrRest": 10}, {"sex": "robot"}):
+    for bad in ({"heightCm": 40}, {"weightKg": 500}, {"hrRest": 10}, {"gender": "robot"}):
         assert (await client.patch("/api/v1/users/me", headers=h, json=bad)).status_code == 400
 
 

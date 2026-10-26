@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from netribeat import cli
 from netribeat.db import make_engine
-from tests.conftest import STRONG_PASSWORD, TEST_DATABASE_URL, make_settings
+from tests.conftest import STRONG_PASSWORD, TEST_DATABASE_URL
 
 
 async def _cleanup(tag: str) -> None:
@@ -34,7 +34,9 @@ def test_cli_end_to_end(
 ) -> None:
     tag = uuid.uuid4().hex[:8]
     admin, other = f"ops-{tag}@example.org", f"user-{tag}@example.org"
-    monkeypatch.setattr(cli, "get_settings", lambda: make_settings())
+    monkeypatch.setattr(
+        cli, "get_cli_settings", lambda: cli.CliSettings(database_url=TEST_DATABASE_URL)
+    )
     try:
         monkeypatch.setattr("sys.stdin", io.StringIO(STRONG_PASSWORD + "\n"))
         assert (
@@ -119,3 +121,16 @@ def test_check_file_command(capsys: pytest.CaptureFixture[str], tmp_path: object
     assert "movesense_csv_ecg" in out and "age in file: 18" in out and "RMSSD 24.1 ms" in out
     assert "UNRELIABLE" in out  # D3
     assert "NOT SUPPORTED: Several columns but none is named RR" in out
+
+
+def test_cli_needs_only_database_url(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: object, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A fresh folder with no .env and no JWT_SECRET / OTP_PEPPER (operator laptop)."""
+    monkeypatch.chdir(str(tmp_path))
+    for var in ("JWT_SECRET", "OTP_PEPPER", "DATABASE_URL"):
+        monkeypatch.delenv(var, raising=False)
+    assert cli.main(["list-admins"]) == 1
+    assert "set DATABASE_URL" in capsys.readouterr().err
+    monkeypatch.setenv("DATABASE_URL", TEST_DATABASE_URL)
+    assert cli.main(["list-admins"]) == 0

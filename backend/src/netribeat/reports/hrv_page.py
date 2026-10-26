@@ -124,10 +124,10 @@ def render_png(
             (0.05, 0.868), 0.90, 0.067, transform=fig.transFigure, fill=False, ec="#cccccc", lw=0.6
         )
     )
-    sex = (subject.get("sex") or "").capitalize()
+    gender = (subject.get("gender") or "").capitalize()
     age = subject.get("age")
     line1 = (
-        " / ".join(p for p in (sex, f"{age} years" if age else "") if p)
+        " / ".join(p for p in (gender, f"{age} years" if age else "") if p)
         or "Subject details not set"
     )
     h, w = subject.get("height_cm"), subject.get("weight_kg")

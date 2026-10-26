@@ -10,7 +10,7 @@ from pydantic import Field, StringConstraints
 
 from netribeat.api_model import ApiModel
 from netribeat.auth.schemas import Email, Password, UserOut
-from netribeat.users.models import Role, Sex, UserSource
+from netribeat.users.models import Gender, Role, UserSource
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
@@ -19,7 +19,7 @@ class ProfileUpdate(ApiModel):
     first_name: Name | None = None
     last_name: Name | None = None
     age: Annotated[int, Field(ge=8, le=100)] | None = None
-    sex: Sex | None = None
+    gender: Gender | None = None
     height_cm: Annotated[int, Field(ge=80, le=250)] | None = None
     weight_kg: Annotated[float, Field(ge=20, le=300)] | None = None
     hr_rest: Annotated[int, Field(ge=25, le=120)] | None = None

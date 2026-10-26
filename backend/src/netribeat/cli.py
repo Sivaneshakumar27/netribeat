@@ -21,6 +21,8 @@ import sys
 from collections.abc import Callable, Sequence
 from typing import TextIO
 
+from pydantic import Field, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from netribeat.audit import service as audit
@@ -28,11 +30,26 @@ from netribeat.auth.password_policy import PasswordPolicy
 from netribeat.auth.security import hash_password
 from netribeat.auth.service import cleanup_expired, revoke_user_sessions
 from netribeat.clock import Clock, SystemClock
-from netribeat.config import Settings, get_settings
+from netribeat.config import ABSOLUTE_MIN_PASSWORD_LENGTH
 from netribeat.core.emails import validated_email
 from netribeat.db import make_engine, make_sessionmaker
 from netribeat.users import repository as users_repo
 from netribeat.users.models import Role, User, UserSource
+
+
+class CliSettings(BaseSettings):
+    """What the admin commands need: the database and the password policy. Unlike the web
+    app, the CLI never needs JWT_SECRET or OTP_PEPPER (it issues no tokens or codes), so an
+    operator can run it with only DATABASE_URL, e.g. against a hosted database."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    database_url: str
+    password_min_length: int = Field(default=12, ge=ABSOLUTE_MIN_PASSWORD_LENGTH)
+    password_max_length: int = 128
+
+
+def get_cli_settings() -> CliSettings:
+    return CliSettings()  # DATABASE_URL comes from the environment or .env
 
 
 class CliError(Exception):
@@ -211,7 +228,7 @@ def _parser() -> argparse.ArgumentParser:
 
 async def _run(
     args: argparse.Namespace,
-    settings: Settings,
+    settings: CliSettings,
     maker: async_sessionmaker[AsyncSession],
     clock: Clock,
     out: TextIO,
@@ -324,7 +341,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "check-file":  # works without a database or .env
         return 1 if check_files(args.paths, sys.stdout) else 0
-    settings = get_settings()
+    try:
+        settings = get_cli_settings()
+    except ValidationError:
+        sys.stderr.write("error: set DATABASE_URL (environment variable or backend/.env)\n")
+        return 1
 
     async def runner() -> None:
         engine = make_engine(settings.database_url)
