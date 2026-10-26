@@ -35,7 +35,7 @@ class EmailBackend(StrEnum):
 
 
 MIN_SECRET_LENGTH = 32
-ABSOLUTE_MIN_PASSWORD_LENGTH = 8  # master prompt §6: never below 8
+ABSOLUTE_MIN_PASSWORD_LENGTH = 8  
 
 
 class Settings(BaseSettings):
