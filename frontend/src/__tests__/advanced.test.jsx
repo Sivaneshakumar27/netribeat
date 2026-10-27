@@ -83,24 +83,27 @@ describe('advanced HRV analysis', () => {
   });
 });
 
-describe('profile subject details', () => {
-  it('saves gender, height, weight and resting HR', async () => {
+describe('settings', () => {
+  it('shows profile, password and devices on one page; old links redirect', async () => {
     const calls = mockApi({
       ...signedIn,
-      'PATCH /users/me': (b) => [200, { ...USER, ...b, name: 'Ada L' }],
+      'GET /users/me/sessions': () => [200, { items: [{ id: 's1', current: true, userAgent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/130', ipAddress: '1.2.3.4', createdAt: '2026-10-20T10:00:00Z', lastUsedAt: '2026-10-20T10:00:00Z', expiresAt: '2026-11-20T10:00:00Z', remember: true }] }],
+      'PATCH /users/me': (b) => [200, { ...USER, ...b, name: `${b.firstName} ${b.lastName}` }],
     });
     renderApp('/account');
-    await userEvent.click(await screen.findByRole('button', { name: 'Edit profile' }));
-    await userEvent.selectOptions(screen.getByLabelText('Gender'), 'female');
-    await userEvent.type(screen.getByLabelText('Height (cm)'), '180');
-    await userEvent.type(screen.getByLabelText('Weight (kg)'), '78');
-    await userEvent.type(screen.getByLabelText('Resting HR (bpm)'), '60');
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Change password' })).toBeInTheDocument();
+    expect(await screen.findByText('This device')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Edit name' }));
+    const first = screen.getByLabelText('First name');
+    await userEvent.clear(first);
+    await userEvent.type(first, 'Grace');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByText('Profile saved.');
-    expect(calls.find((c) => c.method === 'PATCH').body).toMatchObject({ gender: 'female', heightCm: 180, weightKg: 78, hrRest: 60 });
-    expect(screen.getByText(/BMI 24.1/)).toBeInTheDocument();
+    expect(calls.find((c) => c.method === 'PATCH').body).toEqual({ firstName: 'Grace', lastName: USER.lastName });
   });
 });
+
 
 describe('upload accepts RR text files', () => {
   it('accepts .txt and lists it', async () => {

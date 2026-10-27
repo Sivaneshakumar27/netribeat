@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, accountApi, authApi } from '../api/client.js';
-import { ConfirmModal } from '../components/Modal.jsx';
-import { Alert, Button, Field } from '../components/ui.jsx';
-import { MIN_PASSWORD } from '../utils.js';
-import { describeAgent, formatDateTime } from '../utils/format.js';
+import { ApiError, accountApi, authApi } from '../../api/client.js';
+import { ConfirmModal } from '../../components/Modal.jsx';
+import { Alert, Button, Field } from '../../components/ui.jsx';
+import { MIN_PASSWORD } from '../../utils/validation.js';
+import { describeAgent, formatDateTime } from '../../utils/format.js';
 
 function Sessions() {
   const [state, setState] = useState({ loading: true, items: [], error: '' });
@@ -118,17 +118,12 @@ function ChangePassword() {
   );
 }
 
-export default function SecurityPage() {
+/** Password and signed-in devices. */
+export default function SecuritySection() {
   return (
     <>
-      <header className="nb-page-head">
-        <div>
-          <h1 className="nb-page-title">Security</h1>
-          <p className="nb-muted">Your password and the devices signed in to your account.</p>
-        </div>
-      </header>
-      <Sessions />
       <ChangePassword />
+      <Sessions />
     </>
   );
 }

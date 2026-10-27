@@ -17,7 +17,7 @@ describe('navigation by role', () => {
     mockApi(signedIn(USER));
     renderApp('/');
     await screen.findByText('Good to see you, Ada');
-    expect(screen.getByRole('link', { name: 'Security' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Audit log' })).not.toBeInTheDocument();
   });

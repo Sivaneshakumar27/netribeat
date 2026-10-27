@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { ApiError, authApi } from '../api/client.js';
-import { Alert, AuthLayout, Button, Field } from '../components/ui.jsx';
-import { MIN_PASSWORD } from '../utils.js';
+import { ApiError, authApi } from '../../api/client.js';
+import { Alert, AuthLayout, Button, Field } from '../../components/ui.jsx';
+import { MIN_PASSWORD } from '../../utils/validation.js';
 
 export default function NewPasswordPage() {
   const navigate = useNavigate();

@@ -53,12 +53,11 @@ Base URL: `/api/v1`. Interactive docs (when enabled): `/api/docs`.
 | Method | Path | Body / notes |
 |---|---|---|
 | GET | `/auth/me` | Current user |
-| GET · PATCH | `/users/me` | `firstName, lastName, age, gender, heightCm, weightKg, hrRest` (all optional) |
+| GET · PATCH | `/users/me` | `firstName, lastName` |
 | POST | `/users/me/password` | `currentPassword, newPassword, confirmPassword` → 204 |
 | GET | `/users/me/sessions` | Signed-in devices |
 | DELETE | `/users/me/sessions/{id}` | Sign one device out |
 | POST | `/users/me/sessions/revoke-others` | Sign all other devices out |
-| GET · PUT | `/users/me/hr-max` | `method: "age"\|"peak"\|"manual"`, `manualValue` (100–230) → re-analyses my sessions |
 
 ## Sessions — signed in
 
@@ -112,5 +111,4 @@ A file that can't be decoded is rejected with `400` and `fields["files.N"]`.
 | PATCH | `/admin/users/{id}/status` | `isActive` |
 | PATCH | `/admin/users/{id}/role` | `role` |
 | POST | `/admin/users/{id}/sessions/revoke-all` | |
-| GET · PUT | `/admin/users/{id}/hr-max` | Same as `/users/me/hr-max` |
 | GET | `/admin/audit-events` | Query: `action`, `targetUserId`, `limit`, `offset` |

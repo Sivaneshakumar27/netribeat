@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
 from netribeat.auth import audit
-from netribeat.auth.models import HrMaxMethod, User
+from netribeat.auth.models import User
 from netribeat.auth.service import RequestContext
 from netribeat.clock import Clock
 from netribeat.core.errors import Forbidden, NotFound, ValidationFailed
@@ -32,16 +32,10 @@ from netribeat.sessions.processing import (
     decode,
 )
 from netribeat.sessions.processing import reanalyse_advanced as reanalyse_advanced_hrv
-from netribeat.sessions.schemas import HrMaxOption, HrMaxSettingsOut
 
 MAX_FILES = 10
 MAX_FILE_BYTES = 20 * 1024 * 1024
-LABELS = {
-    "override": "Upload override",
-    "manual": "Manual",
-    "peak": "Peak from sessions",
-    "age": "Age formula (210 - 0.65 x age)",
-}
+LABELS = {"override": "Upload override", "age": "Age formula (210 - 0.65 x age)"}
 
 
 @dataclass(frozen=True)
@@ -136,15 +130,6 @@ async def list_sessions(
 # ------------------------------------------------------------------ max HR
 
 
-async def peak_hr(db: AsyncSession, user_id: uuid.UUID) -> float | None:
-    value = await db.scalar(
-        select(func.max(Recording.max_hr)).where(
-            Recording.user_id == user_id, Recording.status == "ready"
-        )
-    )
-    return float(value) if value is not None else None
-
-
 def _inputs(rec: Recording) -> Inputs:
     """Athlete details from this upload only (one account tests many athletes, so the account
     profile is never used): entered values, the name from the file name, otherwise None."""
@@ -160,72 +145,6 @@ def _inputs(rec: Recording) -> Inputs:
         max_hr_label=LABELS[used] if used else "",
         max_hr_method=used,
     )
-
-
-async def hr_max_settings(db: AsyncSession, target: User) -> HrMaxSettingsOut:
-    peak = await peak_hr(db, target.id)
-    age_value = round(engine.theoretical_max_hr(target.age)) if target.age else None
-    options = [
-        HrMaxOption(
-            method="age",
-            value=age_value,
-            detail=f"210 - 0.65 x {target.age}" if target.age else "Set your age in Profile",
-        ),
-        HrMaxOption(
-            method="peak",
-            value=round(peak) if peak else None,
-            detail="Highest max HR in your sessions" if peak else "No analysed sessions yet",
-        ),
-        HrMaxOption(
-            method="manual",
-            value=target.hr_max_manual,
-            detail="Entered by you" if target.hr_max_manual else "Not set",
-        ),
-    ]
-    method = target.hr_max_method.value if target.hr_max_method else None
-    effective = next((o for o in options if o.method == (method or "age")), None)
-    ready = await db.scalar(
-        select(func.count()).where(Recording.user_id == target.id, Recording.status == "ready")
-    )
-    return HrMaxSettingsOut(
-        method=method,
-        manual_value=target.hr_max_manual,
-        options=options,
-        effective=effective if effective and effective.value else None,
-        sessions_ready=int(ready or 0),
-    )
-
-
-async def set_hr_max(
-    db: AsyncSession,
-    clock: Clock,
-    *,
-    actor: User,
-    target: User,
-    method: str,
-    manual_value: int | None,
-    ctx: RequestContext,
-) -> HrMaxSettingsOut:
-    if method == "manual" and manual_value is None:
-        raise ValidationFailed(fields={"manualValue": "Enter a max HR between 100 and 230 bpm"})
-    if method == "peak" and await peak_hr(db, target.id) is None:
-        raise ValidationFailed(fields={"method": "No analysed sessions to take a peak from"})
-    target.hr_max_method = HrMaxMethod(method)
-    target.hr_max_manual = manual_value if method == "manual" else target.hr_max_manual
-    audit.record(
-        db,
-        action="user.hr_max_changed",
-        now=clock.now(),
-        actor_id=actor.id,
-        target_id=target.id,
-        ip=ctx.ip,
-        details={"method": method},
-    )
-    await db.commit()
-    count = await reanalyse_user(db, clock, target)
-    out = await hr_max_settings(db, target)
-    out.recomputed_sessions = count
-    return out
 
 
 # ------------------------------------------------------------------ upload and analysis
@@ -268,24 +187,6 @@ async def reanalyse(db: AsyncSession, clock: Clock, rec: Recording, owner: User)
         rec.attempts += 1
         rec.status, rec.error = "failed", str(exc)
     await db.commit()
-
-
-async def reanalyse_user(db: AsyncSession, clock: Clock, owner: User) -> int:
-    recs = (
-        (
-            await db.execute(
-                select(Recording)
-                .where(Recording.user_id == owner.id)
-                .options(undefer(Recording.file_data))
-                .order_by(Recording.recorded_at)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    for rec in recs:
-        await reanalyse(db, clock, rec, owner)
-    return len(recs)
 
 
 async def upload(

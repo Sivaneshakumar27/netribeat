@@ -1,10 +1,10 @@
-"""Request/response schemas for /sessions and max-HR settings (field names match the UI)."""
+"""Request/response schemas for /sessions (field names match the UI)."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import Field
 
@@ -83,26 +83,6 @@ class AnalysisOut(ApiModel):
 class SignalsOut(ApiModel):
     session_id: uuid.UUID
     signals: dict[str, Any]
-
-
-class HrMaxSettingsIn(ApiModel):
-    method: Literal["age", "peak", "manual"]
-    manual_value: int | None = Field(default=None, ge=100, le=230)
-
-
-class HrMaxOption(ApiModel):
-    method: str
-    value: int | None
-    detail: str
-
-
-class HrMaxSettingsOut(ApiModel):
-    method: str | None
-    manual_value: int | None
-    options: list[HrMaxOption]
-    effective: HrMaxOption | None
-    sessions_ready: int
-    recomputed_sessions: int | None = None
 
 
 class AdvancedOptionsIn(ApiModel):

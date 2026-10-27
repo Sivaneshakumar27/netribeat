@@ -1,4 +1,4 @@
-"""/api/v1/sessions (upload, list, results, report, exports) and max-HR settings."""
+"""/api/v1/sessions: upload, list, results, report and exports."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 
-from netribeat.auth.deps import AdminUser, ClockDep, ContextDep, CurrentUser, DbDep
+from netribeat.auth.deps import ClockDep, ContextDep, CurrentUser, DbDep
 from netribeat.auth.models import User
 from netribeat.core.api_model import error_responses
 from netribeat.core.errors import Conflict, NotFound
@@ -20,8 +20,6 @@ from netribeat.sessions.schemas import (
     AdvancedOut,
     AnalysisOut,
     FileInfo,
-    HrMaxSettingsIn,
-    HrMaxSettingsOut,
     SessionList,
     SessionOut,
     SessionStats,
@@ -31,7 +29,6 @@ from netribeat.sessions.schemas import (
 )
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
-hrmax_router = APIRouter(tags=["Max HR"])
 E = error_responses(400, 401, 404)
 
 
@@ -278,70 +275,3 @@ async def retry(session_id: uuid.UUID, user: CurrentUser, db: DbDep, clock: Cloc
         raise NotFound()
     await service.reanalyse(db, clock, rec, owner)
     return _detail(rec, owner)
-
-
-# ------------------------------------------------------------------ max HR
-
-
-@hrmax_router.get("/users/me/hr-max", response_model=HrMaxSettingsOut, summary="My max HR")
-async def my_hr_max(user: CurrentUser, db: DbDep) -> HrMaxSettingsOut:
-    return await service.hr_max_settings(db, user)
-
-
-@hrmax_router.put(
-    "/users/me/hr-max",
-    response_model=HrMaxSettingsOut,
-    responses=error_responses(400, 401),
-    summary="Set my max HR method; recalculates my sessions",
-)
-async def set_my_hr_max(
-    body: HrMaxSettingsIn, user: CurrentUser, db: DbDep, clock: ClockDep, ctx: ContextDep
-) -> HrMaxSettingsOut:
-    return await service.set_hr_max(
-        db,
-        clock,
-        actor=user,
-        target=user,
-        method=body.method,
-        manual_value=body.manual_value,
-        ctx=ctx,
-    )
-
-
-async def _target(db: DbDep, user_id: uuid.UUID) -> User:
-    target = await db.get(User, user_id)
-    if target is None:
-        raise NotFound("User not found")
-    return target
-
-
-@hrmax_router.get(
-    "/admin/users/{user_id}/hr-max", response_model=HrMaxSettingsOut, summary="A user's max HR"
-)
-async def user_hr_max(user_id: uuid.UUID, admin: AdminUser, db: DbDep) -> HrMaxSettingsOut:
-    return await service.hr_max_settings(db, await _target(db, user_id))
-
-
-@hrmax_router.put(
-    "/admin/users/{user_id}/hr-max",
-    response_model=HrMaxSettingsOut,
-    responses=error_responses(400, 401, 403, 404),
-    summary="Set a user's max HR method; recalculates their sessions",
-)
-async def set_user_hr_max(
-    user_id: uuid.UUID,
-    body: HrMaxSettingsIn,
-    admin: AdminUser,
-    db: DbDep,
-    clock: ClockDep,
-    ctx: ContextDep,
-) -> HrMaxSettingsOut:
-    return await service.set_hr_max(
-        db,
-        clock,
-        actor=admin,
-        target=await _target(db, user_id),
-        method=body.method,
-        manual_value=body.manual_value,
-        ctx=ctx,
-    )

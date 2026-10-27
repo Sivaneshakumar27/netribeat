@@ -89,9 +89,9 @@ Details: [Authentication & email](authentication.md).
 | File | Purpose |
 |---|---|
 | `models.py` | Table `recordings`: upload details, the original file, status, summary columns, `metrics` and `signals` (JSON) |
-| `schemas.py` | Shapes for `/sessions` and the max-HR settings |
-| `router.py` | `/api/v1/sessions/*`, `/users/me/hr-max`, `/admin/users/{id}/hr-max` |
-| `service.py` | Upload, visibility rules (users see their own, admins all), re-analysis, max-HR resolution |
+| `schemas.py` | Shapes for `/sessions` |
+| `router.py` | `/api/v1/sessions/*` |
+| `service.py` | Upload, visibility rules (users see their own, admins all), re-analysis, athlete inputs |
 | `processing.py` | Runs `engine/` and `hrv/` on one session and shapes the result for the API and PDF |
 | `engine/` | **Reference code, unchanged:** `decode_hex.py`, `analyse.py`, `derived_metrics/` (heart rate, training load, movement load) |
 | `hrv/` | Kubios-style HRV: `advanced.py`, `spectral.py`, `artefacts.py`, `constants.py` |
@@ -119,7 +119,7 @@ erDiagram
 
 | Table | One row per |
 |---|---|
-| `users` | Person: email, name, role (`user`/`admin`), password hash, profile (age, gender, height, weight, resting HR, max-HR setting) |
+| `users` | Person: email, name, role (`user`/`admin`), password hash, optional profile fields (never used by the analysis) |
 | `pending_registrations` | Sign-up waiting for its email code (never a usable account) |
 | `auth_challenges` | One-time code (stored as an HMAC), for sign-up or password reset |
 | `auth_sessions` | Signed-in device: hashed refresh token, expiry, user agent, IP |
@@ -131,31 +131,31 @@ Tables are created on start-up by `init_db()`; new columns are added there with
 
 ## Frontend — `frontend/src/`
 
-| Path | Purpose |
-|---|---|
-| `main.jsx` | Entry point; fixes the light theme |
-| `app.jsx` | Routes and the signed-in / admin guards |
-| `api/client.js` | All API calls; keeps the access token in memory, refreshes it once on 401, upload with progress, downloads |
-| `auth/AuthContext.jsx` | Current user; restores the sign-in on page load |
-| `components/` | `DashboardLayout` (sidebar), `ui` (buttons, fields, alerts), `badges`, `Modal` |
-| `charts/` | Dependency-free SVG charts: `LineChart`, `BarChart`, `ScatterChart`, `PoincarePlot`, `ZoneBars`, `Sparkline` |
-| `pages/` | One file per screen (below) |
-| `utils/`, `utils.js` | Formatting, session labels, email/password checks |
-| `styles/tokens.css` | Colours and spacing (black / orange brand, light theme) |
-| `styles/app.css` | All component styles |
-| `__tests__/` | Vitest + Testing Library tests |
+```
+main.jsx · app.jsx        entry point (light theme) and routes with sign-in / admin guards
+api/client.js             every API call; access token in memory, one refresh on 401, upload, downloads
+auth/AuthContext.jsx      current user; restores the sign-in on page load
+components/               DashboardLayout (sidebar), ui (buttons, fields, alerts), badges, Modal
+charts/                   dependency-free SVG charts; LineChart has zoom, pan and an overview strip
+pages/
+  DashboardPage.jsx       latest session and trends
+  auth/                   Login, Register, VerifyEmail, ForgotPassword, ResetOtp, NewPassword
+  sessions/               SessionsPage, SessionPage (+ AdvancedHrv tab), UploadPage
+  settings/               SettingsPage = ProfileSection + SecuritySection (password, devices)
+  admin/                  UsersPage, AuditPage
+utils/                    format.js, session.js (labels, zone colours), validation.js (email, password)
+styles/                   tokens.css (black / orange, light theme), app.css
+__tests__/                Vitest + Testing Library
+```
 
 | Route | Page | Who |
 |---|---|---|
-| `/login`, `/admin/login` | `LoginPage` | Public |
-| `/register`, `/verify-email` | `RegisterPage`, `VerifyEmailPage` | Public |
-| `/forgot-password`, `/reset/verify`, `/reset/new` | Reset flow pages | Public |
-| `/` | `DashboardPage` — latest session and trends | Signed in |
-| `/sessions`, `/sessions/:id` | `SessionsPage`, `SessionPage` (+ `session/AdvancedHrv`) | Signed in |
-| `/upload` | `UploadPage` | Signed in |
-| `/settings` | `SettingsPage` — max-HR method | Signed in |
-| `/account`, `/security` | Profile; password and devices | Signed in |
-| `/admin`, `/admin/audit` | `admin/UsersPage`, `admin/AuditPage` | Admin |
+| `/login`, `/admin/login`, `/register`, `/verify-email` | `pages/auth/*` | Public |
+| `/forgot-password`, `/reset/verify`, `/reset/new` | `pages/auth/*` | Public |
+| `/` | `DashboardPage` | Signed in |
+| `/sessions`, `/sessions/:id`, `/upload` | `pages/sessions/*` | Signed in |
+| `/settings` (`/account`, `/security` redirect here) | `pages/settings/SettingsPage` | Signed in |
+| `/admin`, `/admin/audit` | `pages/admin/*` | Admin |
 
 ## Infrastructure — `infra/`
 

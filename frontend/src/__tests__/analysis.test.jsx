@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { localToIso } from '../pages/UploadPage.jsx';
+import { localToIso } from '../pages/sessions/UploadPage.jsx';
 import { USER, mockApi, renderApp } from './helpers.jsx';
 
 const signedIn = (user = USER) => ({ 'POST /auth/refresh': () => [200, { token: 't', expiresAt: 'x', user }] });
@@ -197,23 +197,3 @@ describe('session view', () => {
   });
 });
 
-describe('settings', () => {
-  it('saves a manual max HR and previews zones', async () => {
-    const base = { method: null, manualValue: null, sessionsReady: 2, effective: null,
-      options: [{ method: 'age', value: 181, detail: 'age' }, { method: 'peak', value: 175, detail: 'peak' }, { method: 'manual', value: null, detail: 'manual' }] };
-    const calls = mockApi({
-      ...signedIn(),
-      'GET /users/me/hr-max': () => [200, base],
-      'PUT /users/me/hr-max': (b) => [200, { ...base, method: 'manual', manualValue: b.manualValue, effective: { method: 'manual', value: b.manualValue, detail: '' }, recomputedSessions: 2 }],
-    });
-    renderApp('/settings');
-    const save = await screen.findByRole('button', { name: 'Save max HR' });
-    expect(save).toBeDisabled();
-    await userEvent.type(screen.getByLabelText('Manual max HR (bpm)'), '190');
-    expect(screen.getByRole('heading', { name: 'Zones at 190 bpm' })).toBeInTheDocument();
-    expect(screen.getByText('171+')).toBeInTheDocument();
-    await userEvent.click(save);
-    expect(await screen.findByText(/Saved · 190 bpm. 2 sessions recalculated/)).toBeInTheDocument();
-    expect(calls.find((c) => c.method === 'PUT').body).toEqual({ method: 'manual', manualValue: 190 });
-  });
-});

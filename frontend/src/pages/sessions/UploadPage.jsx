@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ApiError, adminApi, uploadRecordings } from '../api/client.js';
-import { useAuth } from '../auth/AuthContext.jsx';
-import { StatusBadge } from '../components/badges.jsx';
-import { Alert, Button, Field } from '../components/ui.jsx';
-import { DEVICES, SESSION_TYPES } from '../utils/session.js';
+import { ApiError, adminApi, uploadRecordings } from '../../api/client.js';
+import { useAuth } from '../../auth/AuthContext.jsx';
+import { StatusBadge } from '../../components/badges.jsx';
+import { Alert, Button, Field } from '../../components/ui.jsx';
+import { DEVICES, SESSION_TYPES } from '../../utils/session.js';
 
 const MAX_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 10;

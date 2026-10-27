@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { authApi } from '../api/client.js';
-import { Alert, AuthLayout, Button, Field, useCooldown } from '../components/ui.jsx';
+import { authApi } from '../../api/client.js';
+import { Alert, AuthLayout, Button, Field, useCooldown } from '../../components/ui.jsx';
 
 export default function ResetOtpPage() {
   const navigate = useNavigate();

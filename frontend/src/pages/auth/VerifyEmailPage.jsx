@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ApiError, authApi } from '../api/client.js';
-import { Alert, AuthLayout, Button, Field, useCooldown } from '../components/ui.jsx';
-import { EMAIL_MSG, isEmail, normEmail } from '../utils.js';
+import { ApiError, authApi } from '../../api/client.js';
+import { Alert, AuthLayout, Button, Field, useCooldown } from '../../components/ui.jsx';
+import { EMAIL_MSG, isEmail, normEmail } from '../../utils/validation.js';
 
 export default function VerifyEmailPage() {
   const navigate = useNavigate();

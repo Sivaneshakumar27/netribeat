@@ -140,10 +140,6 @@ export const sessionsApi = {
   signals: (id) => api(`/sessions/${id}/signals`),
   remove: (id) => api(`/sessions/${id}`, { method: 'DELETE' }),
   retry: (id) => api(`/sessions/${id}/retry`, { method: 'POST' }),
-  hrMax: () => api('/users/me/hr-max'),
-  setHrMax: (b) => api('/users/me/hr-max', { method: 'PUT', body: b }),
-  userHrMax: (userId) => api(`/admin/users/${userId}/hr-max`),
-  setUserHrMax: (userId, b) => api(`/admin/users/${userId}/hr-max`, { method: 'PUT', body: b }),
 };
 
 function xhrUpload(form, onProgress) {

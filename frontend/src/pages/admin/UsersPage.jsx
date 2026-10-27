@@ -3,7 +3,7 @@ import { ApiError, adminApi } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import Modal, { ConfirmModal } from '../../components/Modal.jsx';
 import { Alert, Button, Field } from '../../components/ui.jsx';
-import { EMAIL_MSG, isEmail, normEmail } from '../../utils.js';
+import { EMAIL_MSG, isEmail, normEmail } from '../../utils/validation.js';
 import { formatDateTime } from '../../utils/format.js';
 
 const PAGE = 20;

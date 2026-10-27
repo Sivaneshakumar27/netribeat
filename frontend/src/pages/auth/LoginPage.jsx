@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ApiError } from '../api/client.js';
-import { useAuth } from '../auth/AuthContext.jsx';
-import { Alert, AuthLayout, Button, Field } from '../components/ui.jsx';
-import { EMAIL_MSG, isEmail, normEmail } from '../utils.js';
+import { ApiError } from '../../api/client.js';
+import { useAuth } from '../../auth/AuthContext.jsx';
+import { Alert, AuthLayout, Button, Field } from '../../components/ui.jsx';
+import { EMAIL_MSG, isEmail, normEmail } from '../../utils/validation.js';
 
 export default function LoginPage({ mode = 'user' }) {
   const admin = mode === 'admin';

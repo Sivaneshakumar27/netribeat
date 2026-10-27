@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ApiError, authApi } from '../api/client.js';
-import { Alert, AuthLayout, Button, Field } from '../components/ui.jsx';
-import { EMAIL_MSG, MIN_PASSWORD, isEmail, normEmail } from '../utils.js';
+import { ApiError, authApi } from '../../api/client.js';
+import { Alert, AuthLayout, Button, Field } from '../../components/ui.jsx';
+import { EMAIL_MSG, MIN_PASSWORD, isEmail, normEmail } from '../../utils/validation.js';
 
 export default function RegisterPage() {
   const navigate = useNavigate();

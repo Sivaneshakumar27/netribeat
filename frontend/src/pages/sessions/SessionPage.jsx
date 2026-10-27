@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ApiError, downloadFile, sessionsApi } from '../api/client.js';
-import LineChart from '../charts/LineChart.jsx';
-import PoincarePlot from '../charts/PoincarePlot.jsx';
-import Sparkline from '../charts/Sparkline.jsx';
-import ZoneBars from '../charts/ZoneBars.jsx';
-import { MetricTile, QualityBadge, StatusBadge, TypePill } from '../components/badges.jsx';
-import { ConfirmModal } from '../components/Modal.jsx';
-import { Alert, Button } from '../components/ui.jsx';
-import { formatDateTime } from '../utils/format.js';
-import { DEVICE_LABEL, duration, mmss, num, zoneColor } from '../utils/session.js';
-import AdvancedHrv from './session/AdvancedHrv.jsx';
+import { ApiError, downloadFile, sessionsApi } from '../../api/client.js';
+import LineChart from '../../charts/LineChart.jsx';
+import PoincarePlot from '../../charts/PoincarePlot.jsx';
+import Sparkline from '../../charts/Sparkline.jsx';
+import ZoneBars from '../../charts/ZoneBars.jsx';
+import { MetricTile, QualityBadge, StatusBadge, TypePill } from '../../components/badges.jsx';
+import { ConfirmModal } from '../../components/Modal.jsx';
+import { Alert, Button } from '../../components/ui.jsx';
+import { formatDateTime } from '../../utils/format.js';
+import { DEVICE_LABEL, duration, mmss, num, zoneColor } from '../../utils/session.js';
+import AdvancedHrv from './AdvancedHrv.jsx';
 
 const TABS = [['overview', 'Overview'], ['ecg', 'ECG & beats'], ['hr', 'Heart rate'], ['hrv', 'HRV analysis'], ['spec', 'HRV (spec §6)'], ['load', 'Load & respiration']];
 
@@ -117,7 +117,6 @@ function HeartRate({ m, sig }) {
           <MetricTile label="Max" value={num(m.hr.max, 0)} unit="bpm" sub={pctOf(m.hr.max, hm?.value)} />
           <MetricTile label="HRmax used" value={hm ? hm.value : '—'} unit="bpm" sub={hm ? `${hm.label} · ${hm.detail}` : m.zonesUnavailableReason} />
         </div>
-        <p className="nb-small"><Link className="nb-link" to="/settings">Change max HR in Settings</Link></p>
       </section>
       <section className="nb-card"><h2 className="nb-card-title">Heart rate over time</h2><HrChart m={m} sig={sig} /></section>
       <section className="nb-card"><h2 className="nb-card-title">Zone distribution</h2><ZoneBars timeInZonesS={m.timeInZonesS} hrMax={hm?.value} /></section>

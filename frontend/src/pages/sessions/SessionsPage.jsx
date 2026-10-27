@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { sessionsApi } from '../api/client.js';
-import { useAuth } from '../auth/AuthContext.jsx';
-import { MetricTile, QualityBadge, StatusBadge, TypePill } from '../components/badges.jsx';
-import { Alert, Button } from '../components/ui.jsx';
-import { formatDateTime } from '../utils/format.js';
-import { duration, num } from '../utils/session.js';
+import { sessionsApi } from '../../api/client.js';
+import { useAuth } from '../../auth/AuthContext.jsx';
+import { MetricTile, QualityBadge, StatusBadge, TypePill } from '../../components/badges.jsx';
+import { Alert, Button } from '../../components/ui.jsx';
+import { formatDateTime } from '../../utils/format.js';
+import { duration, num } from '../../utils/session.js';
 
 const PAGE = 50;
 

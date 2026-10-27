@@ -3,19 +3,17 @@ import { useAuth } from './auth/AuthContext.jsx';
 import DashboardLayout from './components/DashboardLayout.jsx';
 import AuditPage from './pages/admin/AuditPage.jsx';
 import UsersPage from './pages/admin/UsersPage.jsx';
-import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import NewPasswordPage from './pages/NewPasswordPage.jsx';
-import AccountPage from './pages/AccountPage.jsx';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
+import LoginPage from './pages/auth/LoginPage.jsx';
+import NewPasswordPage from './pages/auth/NewPasswordPage.jsx';
+import RegisterPage from './pages/auth/RegisterPage.jsx';
+import ResetOtpPage from './pages/auth/ResetOtpPage.jsx';
+import VerifyEmailPage from './pages/auth/VerifyEmailPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
-import SessionPage from './pages/SessionPage.jsx';
-import SessionsPage from './pages/SessionsPage.jsx';
-import SettingsPage from './pages/SettingsPage.jsx';
-import UploadPage from './pages/UploadPage.jsx';
-import RegisterPage from './pages/RegisterPage.jsx';
-import ResetOtpPage from './pages/ResetOtpPage.jsx';
-import SecurityPage from './pages/SecurityPage.jsx';
-import VerifyEmailPage from './pages/VerifyEmailPage.jsx';
+import SessionPage from './pages/sessions/SessionPage.jsx';
+import SessionsPage from './pages/sessions/SessionsPage.jsx';
+import UploadPage from './pages/sessions/UploadPage.jsx';
+import SettingsPage from './pages/settings/SettingsPage.jsx';
 
 function Loading() {
   return <div className="nb-loading" role="status"><span className="nb-spinner" aria-hidden="true" /> Loading…</div>;
@@ -64,8 +62,8 @@ export default function App() {
         <Route path="/sessions/:id" element={<SessionPage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/account" element={<AccountPage />} />
-        <Route path="/security" element={<SecurityPage />} />
+        <Route path="/account" element={<Navigate to="/settings" replace />} />
+        <Route path="/security" element={<Navigate to="/settings" replace />} />
         <Route path="/admin" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
         <Route path="/admin/audit" element={<RequireAdmin><AuditPage /></RequireAdmin>} />
       </Route>

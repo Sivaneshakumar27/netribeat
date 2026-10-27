@@ -22,12 +22,6 @@ class Role(StrEnum):
     ADMIN = "admin"
 
 
-class HrMaxMethod(StrEnum):
-    AGE = "age"
-    PEAK = "peak"
-    MANUAL = "manual"
-
-
 class Gender(StrEnum):
     FEMALE = "female"
     MALE = "male"
@@ -50,13 +44,6 @@ class User(Base):
     __table_args__ = (
         CheckConstraint("email IS NULL OR email = lower(btrim(email))", name="email_normalised"),
         CheckConstraint("age IS NULL OR age BETWEEN 8 AND 100", name="age_range"),
-        CheckConstraint(
-            "hr_max_manual IS NULL OR hr_max_manual BETWEEN 100 AND 230", name="hr_max_manual_range"
-        ),
-        CheckConstraint(
-            "hr_max_method IS NULL OR hr_max_method <> 'manual' OR hr_max_manual IS NOT NULL",
-            name="hr_max_manual_required",
-        ),
         CheckConstraint("token_version >= 0", name="token_version_nonneg"),
         CheckConstraint("height_cm IS NULL OR height_cm BETWEEN 80 AND 250", name="height_range"),
         CheckConstraint("weight_kg IS NULL OR weight_kg BETWEEN 20 AND 300", name="weight_range"),
@@ -84,11 +71,8 @@ class User(Base):
     source: Mapped[UserSource] = mapped_column(
         _enum(UserSource, "user_source"), default=UserSource.REGISTRATION
     )
-    # Analysis settings (design-spec §6 Max HR)
+    # Optional account details. Never used by the analysis: athlete details are entered per upload.
     age: Mapped[int | None]
-    hr_max_method: Mapped[HrMaxMethod | None] = mapped_column(_enum(HrMaxMethod, "hr_max_method"))
-    hr_max_manual: Mapped[int | None]
-    # Subject details shown in the HRV report header (all optional)
     gender: Mapped[Gender | None] = mapped_column(_enum(Gender, "gender"))
     height_cm: Mapped[int | None]
     weight_kg: Mapped[float | None]

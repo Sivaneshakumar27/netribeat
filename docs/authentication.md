@@ -75,7 +75,7 @@ Accounts created by an admin have no password; the person sets one through this 
 
 | Endpoint | Does |
 |---|---|
-| `PATCH /users/me` | Name, age, gender, height, weight, resting HR |
+| `PATCH /users/me` | Your first and last name (shown on the Settings page) |
 | `POST /users/me/password` | Needs the current password; signs out other devices |
 | `GET /users/me/sessions` | My signed-in devices |
 | `DELETE /users/me/sessions/{id}` · `POST /users/me/sessions/revoke-others` | Sign devices out |

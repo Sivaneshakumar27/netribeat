@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { authApi } from '../api/client.js';
-import { Alert, AuthLayout, Button, Field } from '../components/ui.jsx';
-import { EMAIL_MSG, isEmail, normEmail } from '../utils.js';
+import { authApi } from '../../api/client.js';
+import { Alert, AuthLayout, Button, Field } from '../../components/ui.jsx';
+import { EMAIL_MSG, isEmail, normEmail } from '../../utils/validation.js';
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
