@@ -53,6 +53,7 @@ END $$;
 # Columns added after a table first shipped (create_all never alters existing tables).
 _ADD_COLUMNS = """
 ALTER TABLE recordings
+  ADD COLUMN IF NOT EXISTS athlete_name VARCHAR(100),
   ADD COLUMN IF NOT EXISTS gender VARCHAR(10),
   ADD COLUMN IF NOT EXISTS resting_hr INTEGER,
   ADD COLUMN IF NOT EXISTS height_cm INTEGER,

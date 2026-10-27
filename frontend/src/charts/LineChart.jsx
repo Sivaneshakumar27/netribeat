@@ -21,7 +21,9 @@ export default function LineChart({
   }), [series]);
   const all = data[0]?.xs || [];
   const [x0, x1] = all.length ? [all[0], all[all.length - 1]] : [0, 1];
-  const [y0, y1] = yDomain || extent(data.flatMap((s) => s.ys));
+  // Markers (e.g. artefacts at their raw value) are part of the range, so none fall outside the plot.
+  const markerYs = markers.map((m) => m.y).filter((v) => Number.isFinite(v));
+  const [y0, y1] = yDomain || extent([...data.flatMap((s) => s.ys), ...markerYs]);
   const w = width - M.left - M.right;
   const h = height - M.top - M.bottom;
   const sx = (v) => M.left + ((v - x0) / ((x1 - x0) || 1)) * w;

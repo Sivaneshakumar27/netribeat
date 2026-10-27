@@ -26,7 +26,7 @@ export default function UploadPage() {
   const admin = user.role === 'admin';
   const inputRef = useRef(null);
   const [files, setFiles] = useState([]);
-  const [form, setForm] = useState({ type: 'training', device: 'synapse', recordedAt: '', age: '', gender: '', restingHr: '', heightCm: '', weightKg: '', hrMaxManual: '', notes: '', userId: '' });
+  const [form, setForm] = useState({ type: 'training', device: 'synapse', recordedAt: '', athleteName: '', age: '', gender: '', restingHr: '', heightCm: '', weightKg: '', hrMaxManual: '', notes: '', userId: '' });
   const [users, setUsers] = useState([]);
   const [tried, setTried] = useState(false);
   const [serverFields, setServerFields] = useState({});
@@ -77,6 +77,7 @@ export default function UploadPage() {
     if (form.recordedAt) fd.append('recordedAt', localToIso(form.recordedAt));
     if (form.age) fd.append('age', String(Number(form.age)));
     if (form.hrMaxManual) fd.append('hrMaxManual', String(Number(form.hrMaxManual)));
+    if (form.athleteName.trim()) fd.append('athleteName', form.athleteName.trim());
     if (form.gender) fd.append('gender', form.gender);
     ['restingHr', 'heightCm', 'weightKg'].forEach((k) => { if (form[k]) fd.append(k, String(Number(form[k]))); });
     if (form.notes.trim()) fd.append('notes', form.notes.trim());
@@ -111,6 +112,8 @@ export default function UploadPage() {
               </select>
             </div>
           ) : null}
+          <Field label="Athlete name (optional)" value={form.athleteName} onChange={set('athleteName')} error={err('athleteName')} maxLength={100}
+            hint="Empty: taken from the file name (e.g. BOOPATHI R_2026-10-22_08_12_39.txt → BOOPATHI R), otherwise “—”." />
           <div className="nb-grid-2">
             <Field label="Age at recording (optional)" type="number" inputMode="numeric" value={form.age} onChange={set('age')} error={err('age')} min="8" max="100" />
             <Field label="Max HR override (optional)" type="number" inputMode="numeric" value={form.hrMaxManual} onChange={set('hrMaxManual')} error={err('hrMaxManual')} min="100" max="230" />

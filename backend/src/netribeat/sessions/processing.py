@@ -11,6 +11,7 @@ resting HR) and renames fields.
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -29,12 +30,28 @@ HRV_WINDOW_S = 300.0  # spec HRV: first 5 minutes of the corrected RR series
 HRV_MIN_BEATS = 30
 
 
+_NAMED_FILE = re.compile(r"^(?P<name>.+?)_\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2}$")
+
+
+def name_from_filename(file_name: str) -> str | None:
+    """The athlete name in `NAME_YYYY-MM-DD_HH_MM_SS.txt`, or None for other file names."""
+    stem = file_name.rsplit("/", 1)[-1].rsplit("\\", 1)[-1].rsplit(".", 1)[0]
+    m = _NAMED_FILE.match(stem)
+    return m["name"].replace("_", " ").strip() or None if m else None
+
+
+def athlete_name(entered: str | None, file_name: str) -> str | None:
+    """Entered on upload first, then the file name; None when neither has one."""
+    return (entered or "").strip() or name_from_filename(file_name)
+
+
 class ProcessingError(Exception):
     """A user-facing reason the file can't be analysed."""
 
 
 @dataclass(frozen=True)
 class Inputs:
+    name: str | None
     age: int | None
     gender: str | None  # male | female | other | None
     resting_hr: int | None
@@ -182,6 +199,7 @@ def analyse(df: pd.DataFrame, inputs: Inputs) -> Result:
         "movementIntensity": mov["movement_intensity"],
         "steps": int(steps["value"].sum()),
         "subject": {
+            "name": inputs.name,
             "age": inputs.age,
             "gender": inputs.gender,
             "restingHr": inputs.resting_hr,

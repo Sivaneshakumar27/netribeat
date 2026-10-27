@@ -147,6 +147,7 @@ async def upload(
     hr_max_manual: Annotated[int | None, Form(alias="hrMaxManual", ge=100, le=230)] = None,
     notes: Annotated[str | None, Form(max_length=500)] = None,
     user_id: Annotated[uuid.UUID | None, Form(alias="userId")] = None,
+    athlete_name: Annotated[str | None, Form(alias="athleteName", max_length=100)] = None,
     gender: Annotated[Literal["male", "female", "other"] | None, Form()] = None,
     resting_hr: Annotated[int | None, Form(alias="restingHr", ge=25, le=120)] = None,
     height_cm: Annotated[int | None, Form(alias="heightCm", ge=80, le=250)] = None,
@@ -161,6 +162,7 @@ async def upload(
         hr_max_manual=hr_max_manual,
         notes=notes,
         user_id=user_id,
+        athlete_name=athlete_name,
         gender=gender,
         resting_hr=resting_hr,
         height_cm=height_cm,
@@ -214,9 +216,7 @@ async def advanced(
 @router.get("/{session_id}/report", responses=E, summary="PDF report")
 async def report(session_id: uuid.UUID, user: CurrentUser, db: DbDep, clock: ClockDep) -> Response:
     rec = await _ready(db, user, session_id)
-    owner = await db.get(User, rec.user_id)
-    label = owner.display_name if owner else "Deleted user"
-    content = pdf.render(rec, label, clock.now())
+    content = pdf.render(rec, clock.now())
     return _download(content, "application/pdf", f"netribeat-session-{str(rec.id)[:8]}.pdf")
 
 

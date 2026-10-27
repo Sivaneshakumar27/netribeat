@@ -23,13 +23,16 @@ so the PDF, the exports and the screen always agree. Missing values print as **�
 ## PDF report — `pdf.py`
 
 Two A4 pages in the NetriBeat style: black header band with the logo, orange accents, light pages.
-Drawn with matplotlib.
+Drawn with matplotlib. The header shows the session type and date — never the account holder's name.
+
+**Athlete name:** the *Athlete name* field on upload → the name in the file name
+(`BOOPATHI R_2026-10-22_08_12_39.txt` → *BOOPATHI R*) → **—**.
 
 ### Page 1 · HRV Analysis Report
 
 | Block | Shows |
 |---|---|
-| Subject | Name, age, gender, height, weight, BMI, resting HR, max HR used, session type, recorded (IST), duration, HRV sample window |
+| Subject | Athlete name, age, gender, height, weight, BMI, resting HR, max HR used, session type, recorded (IST), duration, HRV sample window |
 | RR intervals | Whole tachogram; analysed sample shaded; corrected beats as orange dots |
 | Time domain | Mean RR, SDNN, Mean HR, SD HR, Min/Max HR, RMSSD, NN50, pNN50, RR triangular index, TINN, Stress index |
 | RR histogram · Poincaré plot | Distribution of RR; RR(n) vs RR(n+1) with the SD1/SD2 ellipse |

@@ -85,6 +85,7 @@ Base URL: `/api/v1`. Interactive docs (when enabled): `/api/docs`.
 | `type` | `training` · `rest` · `match` · `recovery` · `test` | no (training) |
 | `device` | text | no |
 | `recordedAt` | ISO date-time | no (from the file name, else now) |
+| `athleteName` | ≤ 100 chars — shown in the report | no (from the file name, else —) |
 | `age` | 8–100 | no |
 | `gender` | `male` · `female` · `other` | no |
 | `restingHr` | 25–120 | no |

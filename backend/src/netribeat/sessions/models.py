@@ -33,6 +33,7 @@ class Recording(Base):
     device: Mapped[str] = mapped_column(String(40))
     notes: Mapped[str | None] = mapped_column(String(500))
     # Subject details entered on upload (optional; empty -> the owner's profile value)
+    athlete_name: Mapped[str | None] = mapped_column(String(100))  # empty -> from the file name
     age: Mapped[int | None]
     age_source: Mapped[str] = mapped_column(String(10))  # entered | profile | none
     gender: Mapped[str | None] = mapped_column(String(10))  # male | female | other

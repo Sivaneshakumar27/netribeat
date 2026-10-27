@@ -29,6 +29,7 @@ from matplotlib.ticker import FuncFormatter
 
 from netribeat.sessions.engine import IST
 from netribeat.sessions.models import Recording
+from netribeat.sessions.processing import athlete_name
 
 # Brand colours (frontend tokens.css, light theme)
 INK = "#141414"
@@ -97,6 +98,11 @@ def time_axis(ax: Any) -> None:
 
 
 # ------------------------------------------------------------------ page furniture
+
+
+def recorded(rec: Recording) -> str:
+    """Header subtitle: session type and recording time (no personal names)."""
+    return f"{rec.type.title()} session · {rec.recorded_at.astimezone(IST):%d %b %Y, %H:%M} IST"
 
 
 def logo(fig: Figure, x: float, y: float, h: float) -> None:
@@ -296,14 +302,14 @@ def no_data(ax: Any, text: str) -> None:
 # ------------------------------------------------------------------ page 1: HRV
 
 
-def subject_box(fig: Figure, rec: Recording, owner: str, m: dict[str, Any]) -> None:
+def subject_box(fig: Figure, rec: Recording, m: dict[str, Any]) -> None:
     sub = m.get("subject") or {}
     h, w = sub.get("heightCm"), sub.get("weightKg")
     bmi = w / (h / 100) ** 2 if h and w else None
     sample = (m.get("advanced") or {}).get("sample") or {}
     start = sample.get("startS")
     cells = [
-        ("Name", owner),
+        ("Athlete", athlete_name(rec.athlete_name, rec.file_name) or DASH),
         ("Age", fmt(sub.get("age"), 0, "y")),
         ("Gender", (sub.get("gender") or DASH).title()),
         ("Height", fmt(h, 0, "cm")),
@@ -341,14 +347,14 @@ def subject_box(fig: Figure, rec: Recording, owner: str, m: dict[str, Any]) -> N
         fig.text(cx, cy - 0.0125, v[:26], fontsize=7.6, color=INK, weight="bold")
 
 
-def page_hrv(pdf: PdfPages, rec: Recording, owner: str, at: datetime) -> None:
+def page_hrv(pdf: PdfPages, rec: Recording, at: datetime) -> None:
     m, s = rec.metrics or {}, rec.signals or {}
     adv, advs = m.get("advanced") or {}, s.get("advanced") or {}
     nl = adv.get("nonlinear") or {}
     unavailable = (adv.get("unavailable") or {}).get("all") or DASH
     fig = plt.figure(figsize=A4)
-    header(fig, "HRV Analysis Report", owner, 1)
-    subject_box(fig, rec, owner, m)
+    header(fig, "HRV Analysis Report", recorded(rec), 1)
+    subject_box(fig, rec, m)
 
     # RR tachogram
     section(fig, 0.04, 0.84, "RR intervals")
@@ -607,12 +613,12 @@ def page_hrv(pdf: PdfPages, rec: Recording, owner: str, at: datetime) -> None:
 # ------------------------------------------------------------------ page 2: session
 
 
-def page_session(pdf: PdfPages, rec: Recording, owner: str, at: datetime) -> None:
+def page_session(pdf: PdfPages, rec: Recording, at: datetime) -> None:
     m, s = rec.metrics or {}, rec.signals or {}
     hr = m.get("hr") or {}
     hr_max = (m.get("hrMax") or {}).get("value")
     fig = plt.figure(figsize=A4)
-    header(fig, "Session & Training Report", owner, 2)
+    header(fig, "Session & Training Report", recorded(rec), 2)
 
     def pct(v: float | None) -> str:
         return f"{round(100 * v / hr_max)} % of max HR" if v and hr_max else ""
@@ -759,10 +765,10 @@ def page_session(pdf: PdfPages, rec: Recording, owner: str, at: datetime) -> Non
     plt.close(fig)
 
 
-def render(rec: Recording, owner_label: str, generated_at: datetime) -> bytes:
+def render(rec: Recording, generated_at: datetime) -> bytes:
     buf = io.BytesIO()
     meta = {"Title": "NetriBeat session report", "Author": "NetriBeat"}
     with PdfPages(buf, metadata=meta) as pdf:
-        page_hrv(pdf, rec, owner_label, generated_at)
-        page_session(pdf, rec, owner_label, generated_at)
+        page_hrv(pdf, rec, generated_at)
+        page_session(pdf, rec, generated_at)
     return buf.getvalue()

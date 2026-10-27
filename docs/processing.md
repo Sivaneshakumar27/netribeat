@@ -36,7 +36,7 @@ Analysis runs inside the upload request; a 30-minute file takes about a second.
 The sensor detects beats itself — there is **no raw ECG**. It stores RR intervals,
 accelerometer RMS and step counts.
 
-**File name** `NAME_YYYY-MM-DD_HH_MM_SS.txt` = recording start in IST. Without it, the
+**File name** `NAME_YYYY-MM-DD_HH_MM_SS.txt` = athlete name and recording start in IST. Without it, the
 *Recorded on* field or the upload time is used.
 
 **One packet per line, 200 hex characters, 7.5 s each:**
@@ -104,6 +104,7 @@ HR per beat → capped-step smoothing → median per 3 s → exponential smoothi
 | Resting HR | TRIMP | 50 bpm |
 | Gender | TRIMP factor | — (training load needs male or female) |
 | Age | Max HR formula | — |
+| Athlete name | Report header box | Upload field → file name → — |
 
 **Zones** (% of max HR): below Z1 < 50 · Z1 50–60 · Z2 60–70 · Z3 70–80 · Z4 80–90 · Z5 ≥ 90.
 Time in zone sums each 3 s bucket's duration.

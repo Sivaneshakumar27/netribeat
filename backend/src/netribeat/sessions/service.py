@@ -24,7 +24,13 @@ from netribeat.clock import Clock
 from netribeat.core.errors import Forbidden, NotFound, ValidationFailed
 from netribeat.sessions import engine
 from netribeat.sessions.models import Recording
-from netribeat.sessions.processing import Inputs, ProcessingError, analyse, decode
+from netribeat.sessions.processing import (
+    Inputs,
+    ProcessingError,
+    analyse,
+    athlete_name,
+    decode,
+)
 from netribeat.sessions.processing import reanalyse_advanced as reanalyse_advanced_hrv
 from netribeat.sessions.schemas import HrMaxOption, HrMaxSettingsOut
 
@@ -48,6 +54,7 @@ class UploadForm:
     notes: str | None
     user_id: uuid.UUID | None  # admins only
     # Subject details (optional; empty -> the owner's profile value)
+    athlete_name: str | None = None  # empty -> from the file name
     gender: str | None = None
     resting_hr: int | None = None
     height_cm: int | None = None
@@ -153,6 +160,7 @@ async def _inputs(db: AsyncSession, rec: Recording, owner: User) -> Inputs:
     if value is None:
         used = "age" if age is not None else None
     return Inputs(
+        name=athlete_name(rec.athlete_name, rec.file_name),
         age=age,
         gender=rec.gender or (owner.gender.value if owner.gender else None),
         resting_hr=rec.resting_hr or owner.hr_rest,
@@ -343,6 +351,7 @@ async def upload(
                 age=age,
                 age_source="entered" if form.age is not None else "profile" if age else "none",
                 hr_max_manual=form.hr_max_manual,
+                athlete_name=(form.athlete_name or "").strip() or None,
                 gender=form.gender,
                 resting_hr=form.resting_hr,
                 height_cm=form.height_cm,
