@@ -7,11 +7,26 @@ from heart_rate.hr_time_series().
 
 import numpy as np
 
-from netribeat.engine.algo.common import durations_s
+import pandas as pd
+
+from netribeat.engine.algo.hr.heart_rate import BUCKET_S
 
 DEFAULT_RESTING_HR = 50  # lib-netrin get_default_min_hr()
 ZONE_FRACTIONS = [0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # zone 0-6 lower bounds, fraction of max HR
 GENDER_FACTOR = {"male": 1.92, "female": 1.67}  # Banister TRIMP weighting
+
+
+def durations_s(timestamps):
+    """Seconds from each row to the next; the last row gets the median step."""
+    t = pd.Series(timestamps).reset_index(drop=True)
+    if len(t) == 0:
+        return np.array([])
+    if len(t) == 1:
+        return np.array([float(BUCKET_S)])
+    steps = (t.shift(-1) - t).dt.total_seconds().to_numpy(copy=True)
+    steps[-1] = np.median(steps[:-1])
+    return steps
+
 
 
 def theoretical_max_hr(age):

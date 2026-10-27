@@ -32,7 +32,7 @@ flowchart TD
 | Zones, TRIMP, movement | `engine/algo/training_load/`, `engine/algo/movement_load/` | Reference code (SES-7), function code unchanged |
 | HRV | `engine/algo/hrv_td_fd_nl/{time_domain,frequency_domain,nonlinear}.py` | Kubios-compatible definitions |
 | Respiration | `engine/algo/respiration_rate/respiration_rate.py` | HF peak × 60 |
-| Outputs | `engine/derived_metrics.py`, `engine/algo/hrv_td_fd_nl/hrv_analysis.py`, `sessions.py` | Chooses inputs, names fields |
+| Outputs | `engine/algo/hrv_td_fd_nl/hrv_analysis.py`, `sessions.py` (`analyse_session`, `analyse`) | Chooses inputs, names fields |
 
 Analysis runs inside the upload request; a 30-minute file takes about a second.
 

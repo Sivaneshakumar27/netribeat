@@ -15,12 +15,19 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import numpy.typing as npt
 
-from netribeat.engine.algo.common import rounded
-
 if TYPE_CHECKING:
     from netribeat.engine.algo.hrv_td_fd_nl.hrv_analysis import AdvancedOptions
 
 F = npt.NDArray[np.float64]
+
+
+def rounded(v: float | None, nd: int = 3) -> float | None:
+    """Round, or None for missing / NaN / infinite values (all HRV results)."""
+    if v is None:
+        return None
+    v = float(v)
+    return round(v, nd) if math.isfinite(v) else None
+
 
 PNNI_THRESHOLDS_MS = (20.0, 50.0)
 TRIANGULAR_BIN_MS = 1000.0 / 128.0  # 7.8125 ms (Task Force 1996)

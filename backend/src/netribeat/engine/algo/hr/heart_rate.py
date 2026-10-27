@@ -9,7 +9,31 @@ Port of lib-netrin `time_series/heart_rate` (`process_hr`), called by svc-sessio
 
 import numpy as np
 
-from netribeat.engine.algo.common import bucket, exp_decay
+
+# Helpers shared with movement_load. Ported from lib-netrin.
+BUCKET_S = 3  # lib-netrin get_bucket_size(): metric time series use 3 s buckets
+
+
+def exp_decay(values, decay):
+    """Exponential smoothing that skips NaNs: y = previous · decay + x · (1 − decay).
+
+    Loops because each value depends on the previous smoothed value. Rounded to 2 decimals.
+    """
+    out = np.array(values, dtype=float)
+    valid = np.flatnonzero(~np.isnan(out))
+    if valid.size == 0:
+        raise ValueError("Input series contains only NaNs")
+    prev = out[valid[0]]
+    for i in valid[1:]:
+        out[i] = prev = prev * decay + out[i] * (1 - decay)
+    return np.round(out, 2)
+
+
+def bucket(df, agg, seconds=BUCKET_S):
+    """Aggregate `value` per time bucket (timestamps floored to multiples of `seconds`)."""
+    floored = df.assign(timestamp=df["timestamp"].dt.floor(f"{seconds}s"))
+    return floored.groupby("timestamp", as_index=False)["value"].agg(agg)
+
 
 HR_DECAY = 0.7
 MIN_HR, MAX_HR = 28, 230  # plausible HR range (bpm)

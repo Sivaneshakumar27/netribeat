@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import numpy.typing as npt
 
-from netribeat.engine.algo.common import rounded
+from netribeat.engine.algo.hrv_td_fd_nl.time_domain import rounded
 
 if TYPE_CHECKING:
     from netribeat.engine.algo.hrv_td_fd_nl.hrv_analysis import AdvancedOptions

@@ -57,12 +57,12 @@ from netribeat.engine.algo.training_load.training_load import (
     DEFAULT_RESTING_HR,
     hr_zones,
     theoretical_max_hr,
+    training_metrics,
     zone_durations_ms,
     zone_thresholds,
 )
-from netribeat.engine.derived_metrics import analyse_session, item
 from netribeat.hex_decoder.decode_hex import start_time_from_filename
-from netribeat.hex_decoder.reader import ProcessingError, athlete_name, decode
+from netribeat.hex_decoder.reader import ProcessingError, athlete_name, decode, item
 from netribeat.preprocessing.artefact_correction import correct_artefacts
 from netribeat.reports import exports, pdf
 from netribeat.rr_interval.rr_intervals import rr_intervals
@@ -77,6 +77,27 @@ ANALYSIS_VERSION = "hex-1.1"
 ZONE_KEYS = ["belowZ1", "z1", "z2", "z3", "z4", "z5"]  # engine zones 0-5
 HRV_WINDOW_S = 300.0  # spec HRV: first 5 minutes of the corrected RR series
 HRV_MIN_BEATS = 30
+
+
+def analyse_session(
+    df: pd.DataFrame,
+    age: int | None,
+    gender: str | None,
+    max_hr: float | None = None,
+    resting_hr: int | None = None,
+    zones: str = "classic",
+) -> dict[str, Any]:
+    """Reference engine: HR, training load and movement load for one decoded session.
+    Max HR defaults to 210 − 0.65 · age and resting HR to 50 bpm."""
+    max_hr = max_hr or theoretical_max_hr(age)
+    resting_hr = resting_hr or DEFAULT_RESTING_HR
+    hr = hr_time_series(item(df, "hr"))
+    rms = rms_time_series(item(df, "rms"))
+    return {
+        "hr_metrics": hr_metrics(hr["value"]),
+        "training_metrics": training_metrics(hr, max_hr, resting_hr, gender, zones),
+        "movement_metrics": movement_metrics(rms),
+    }
 
 
 @dataclass(frozen=True)

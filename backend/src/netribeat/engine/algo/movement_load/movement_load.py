@@ -9,7 +9,8 @@ Port of lib-netrin `time_series/rms.py` (`compute_average_rms`, decay 0.9 in svc
 
 import numpy as np
 
-from netribeat.engine.algo.common import bucket, durations_s, exp_decay
+from netribeat.engine.algo.hr.heart_rate import bucket, exp_decay
+from netribeat.engine.algo.training_load.training_load import durations_s
 
 RMS_DECAY = 0.9
 SECONDS_PER_HOUR = 3600

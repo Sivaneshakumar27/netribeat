@@ -46,12 +46,10 @@ src = ["src"]
 # Reference engine code (SES-4 / SES-7), kept as written: never reformat it.
 extend-exclude = [
     "src/netribeat/hex_decoder/decode_hex.py",
-    "src/netribeat/engine/algo/common.py",
     "src/netribeat/engine/algo/hr",
     "src/netribeat/engine/algo/max_min_avg_hr",
     "src/netribeat/engine/algo/training_load",
     "src/netribeat/engine/algo/movement_load",
-    "src/netribeat/engine/derived_metrics.py",
 ]
 
 [tool.ruff.lint]
@@ -67,23 +65,19 @@ mypy_path = "src"
 packages = ["netribeat"]
 exclude = [
     'src/netribeat/hex_decoder/decode_hex\.py',
-    'src/netribeat/engine/algo/common\.py',
     'src/netribeat/engine/algo/hr',
     'src/netribeat/engine/algo/max_min_avg_hr',
     'src/netribeat/engine/algo/training_load',
     'src/netribeat/engine/algo/movement_load',
-    'src/netribeat/engine/derived_metrics.py',
 ]
 
 [[tool.mypy.overrides]]
 module = [
     "netribeat.hex_decoder.decode_hex",
-    "netribeat.engine.algo.common",
     "netribeat.engine.algo.hr.*",
     "netribeat.engine.algo.max_min_avg_hr.*",
     "netribeat.engine.algo.training_load.*",
     "netribeat.engine.algo.movement_load.*",
-    "netribeat.engine.derived_metrics",
     "pandas",
     "pandas.*",
 ]

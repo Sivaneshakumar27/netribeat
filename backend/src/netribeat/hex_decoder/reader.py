@@ -10,6 +10,11 @@ import pandas as pd
 from netribeat.hex_decoder.decode_hex import decode_hex, start_time_from_filename
 
 
+def item(df: pd.DataFrame, name: str) -> pd.DataFrame:
+    """One series of a decoded session (`hr`, `rrt`, `rms` or `steps`) as (timestamp, value)."""
+    return df.loc[df["data_item"] == name, ["timestamp", "value"]].reset_index(drop=True)
+
+
 class ProcessingError(Exception):
     """A user-facing reason the file can't be analysed."""
 
