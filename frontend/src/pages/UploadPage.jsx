@@ -6,9 +6,9 @@ import { StatusBadge } from '../components/badges.jsx';
 import { Alert, Button, Field } from '../components/ui.jsx';
 import { DEVICES, SESSION_TYPES } from '../utils/session.js';
 
-const MAX_BYTES = 50 * 1024 * 1024;
+const MAX_BYTES = 20 * 1024 * 1024;
 const MAX_FILES = 10;
-const OK_EXT = /\.(json|csv|txt)$/i;
+const OK_EXT = /\.(txt|hex)$/i;
 
 /** datetime-local value → ISO 8601 with the browser's UTC offset. */
 export function localToIso(value) {
@@ -26,7 +26,7 @@ export default function UploadPage() {
   const admin = user.role === 'admin';
   const inputRef = useRef(null);
   const [files, setFiles] = useState([]);
-  const [form, setForm] = useState({ type: 'training', device: 'chest_strap_rr', recordedAt: '', age: '', hrMaxManual: '', notes: '', userId: '' });
+  const [form, setForm] = useState({ type: 'training', device: 'synapse', recordedAt: '', age: '', gender: '', restingHr: '', heightCm: '', weightKg: '', hrMaxManual: '', notes: '', userId: '' });
   const [users, setUsers] = useState([]);
   const [tried, setTried] = useState(false);
   const [serverFields, setServerFields] = useState({});
@@ -49,18 +49,21 @@ export default function UploadPage() {
     });
   }
 
-  const fileProblems = files.map((f) => (!OK_EXT.test(f.name) ? 'Only .json, .csv and .txt files are supported'
-    : f.size > MAX_BYTES ? 'Larger than 50 MB' : f.size === 0 ? 'The file is empty' : null));
+  const fileProblems = files.map((f) => (!OK_EXT.test(f.name) ? 'Only Synapse hex files (.txt or .hex) are supported'
+    : f.size > MAX_BYTES ? 'Larger than 20 MB' : f.size === 0 ? 'The file is empty' : null));
   const local = {
-    files: !files.length ? 'Choose at least one .json or .csv file' : files.length > MAX_FILES ? `Upload at most ${MAX_FILES} files at once` : null,
+    files: !files.length ? 'Choose at least one hex file' : files.length > MAX_FILES ? `Upload at most ${MAX_FILES} files at once` : null,
     age: form.age && !(Number(form.age) >= 8 && Number(form.age) <= 100) ? 'Age must be 8–100' : null,
     hrMaxManual: form.hrMaxManual && !(Number(form.hrMaxManual) >= 100 && Number(form.hrMaxManual) <= 230) ? 'Max HR must be 100–230 bpm' : null,
+    restingHr: form.restingHr && !(Number(form.restingHr) >= 25 && Number(form.restingHr) <= 120) ? 'Resting HR must be 25–120 bpm' : null,
+    heightCm: form.heightCm && !(Number(form.heightCm) >= 80 && Number(form.heightCm) <= 250) ? 'Height must be 80–250 cm' : null,
+    weightKg: form.weightKg && !(Number(form.weightKg) >= 20 && Number(form.weightKg) <= 300) ? 'Weight must be 20–300 kg' : null,
   };
   const err = (k) => serverFields[k] || ((tried || k === 'hrMaxManual') ? local[k] : null);
   const ageNum = Number(form.age);
   const zonesNote = form.hrMaxManual && !local.hrMaxManual ? `Zones will use ${form.hrMaxManual} bpm (upload override) unless your saved setting says otherwise.`
-    : form.age && !local.age ? `Zones will use ${210 - ageNum} bpm (210 − age) unless your saved setting says otherwise.`
-      : 'Leave age empty for CSV files that include it; JSON files carry no age, so zones need age or a max HR.';
+    : form.age && !local.age ? `Zones will use ${Math.round(210 - 0.65 * ageNum)} bpm (210 − 0.65 × age) unless your saved setting says otherwise.`
+      : 'Empty fields use your profile; anything missing shows as “—” in the report.';
 
   async function submit() {
     setTried(true);
@@ -74,6 +77,8 @@ export default function UploadPage() {
     if (form.recordedAt) fd.append('recordedAt', localToIso(form.recordedAt));
     if (form.age) fd.append('age', String(Number(form.age)));
     if (form.hrMaxManual) fd.append('hrMaxManual', String(Number(form.hrMaxManual)));
+    if (form.gender) fd.append('gender', form.gender);
+    ['restingHr', 'heightCm', 'weightKg'].forEach((k) => { if (form[k]) fd.append(k, String(Number(form[k]))); });
     if (form.notes.trim()) fd.append('notes', form.notes.trim());
     if (admin && form.userId) fd.append('userId', form.userId);
     setProgress(0);
@@ -84,7 +89,7 @@ export default function UploadPage() {
       setTried(false);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'validation_error') { setServerFields(e.fields); setError(e.message); }
-      else setError(e.status === 413 ? e.message || 'A file is larger than 50 MB' : e.message);
+      else setError(e.status === 413 ? e.message || 'A file is larger than 20 MB' : e.message);
     } finally {
       setProgress(null);
     }
@@ -93,10 +98,10 @@ export default function UploadPage() {
   return (
     <>
       <header className="nb-page-head"><div><h1 className="nb-page-title">New recording</h1>
-        <p className="nb-muted">ECG: Movesense <b>.json</b> or <b>.csv</b>. RR intervals: Movesense <b>.json</b>, or an RR list as <b>.csv</b>/<b>.txt</b> (one value per line, ms or s) or <b>.json</b> (<code>[812, 790, …]</code> or <code>{'{"rr": [...]}'}</code>). Each file becomes its own session.</p></div></header>
+        <p className="nb-muted">Synapse sensor hex files (<b>.txt</b>, e.g. <code>NAME_2026-10-22_08_12_39.txt</code>). Each recording in a file becomes its own session.</p></div></header>
       <form className="nb-upload" onSubmit={(e) => { e.preventDefault(); submit(); }} noValidate>
         <section className="nb-card nb-stack-wide">
-          <h2 className="nb-card-title"><span className="nb-step">1</span>Who and when</h2>
+          <h2 className="nb-card-title"><span className="nb-step">1</span>Who and when <span className="nb-muted nb-small">· subject details for the report</span></h2>
           {admin ? (
             <div className="nb-field">
               <label className="nb-field-label" htmlFor="up-user">Track to user</label>
@@ -109,10 +114,17 @@ export default function UploadPage() {
           <div className="nb-grid-2">
             <Field label="Age at recording (optional)" type="number" inputMode="numeric" value={form.age} onChange={set('age')} error={err('age')} min="8" max="100" />
             <Field label="Max HR override (optional)" type="number" inputMode="numeric" value={form.hrMaxManual} onChange={set('hrMaxManual')} error={err('hrMaxManual')} min="100" max="230" />
+            <div className="nb-field"><label className="nb-field-label" htmlFor="up-gender">Gender (optional)</label>
+              <select id="up-gender" className="nb-input" value={form.gender} onChange={(e) => set('gender')(e.target.value)}>
+                <option value="">From profile</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
+              </select>{err('gender') ? <div className="nb-field-error">{err('gender')}</div> : null}</div>
+            <Field label="Resting HR, bpm (optional)" type="number" inputMode="numeric" value={form.restingHr} onChange={set('restingHr')} error={err('restingHr')} min="25" max="120" />
+            <Field label="Height, cm (optional)" type="number" inputMode="numeric" value={form.heightCm} onChange={set('heightCm')} error={err('heightCm')} min="80" max="250" />
+            <Field label="Weight, kg (optional)" type="number" inputMode="decimal" value={form.weightKg} onChange={set('weightKg')} error={err('weightKg')} min="20" max="300" />
           </div>
           <p className="nb-muted nb-small">{zonesNote}</p>
           <Field label="Recorded on (optional)" type="datetime-local" value={form.recordedAt} onChange={set('recordedAt')} error={err('recordedAt')}
-            hint="Empty: taken from the file when it has a date (CSV), otherwise the upload time." />
+            hint="Empty: taken from the file name (NAME_YYYY-MM-DD_HH_MM_SS), otherwise the upload time." />
         </section>
         <section className="nb-card nb-stack-wide">
           <h2 className="nb-card-title"><span className="nb-step">2</span>Session</h2>
@@ -141,10 +153,10 @@ export default function UploadPage() {
             onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
             onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
           >
-            <p><b>Drop .json, .csv or .txt files here</b></p>
-            <p className="nb-muted nb-small">Up to {MAX_FILES} files, 50 MB each</p>
+            <p><b>Drop Synapse hex files (.txt) here</b></p>
+            <p className="nb-muted nb-small">Up to {MAX_FILES} files, 20 MB each</p>
             <Button onClick={() => inputRef.current?.click()}>Choose files</Button>
-            <input ref={inputRef} type="file" accept=".json,.csv,.txt,application/json,text/csv,text/plain" multiple hidden aria-label="Choose files"
+            <input ref={inputRef} type="file" accept=".txt,.hex,text/plain" multiple hidden aria-label="Choose files"
               onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
           </div>
           {err('files') ? <div className="nb-field-error">{err('files')}</div> : null}

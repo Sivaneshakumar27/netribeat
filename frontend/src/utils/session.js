@@ -3,7 +3,7 @@ export const SESSION_TYPES = [
   ['recovery', 'Recovery'], ['test', 'Test protocol'],
 ];
 export const DEVICES = [
-  ['chest_strap_rr', 'Chest strap (RR only)'], ['chest_strap_rr_acc', 'Chest strap (RR + ACC)'],
+  ['synapse', 'Synapse sensor (hex)'], ['chest_strap_rr', 'Chest strap (RR only)'], ['chest_strap_rr_acc', 'Chest strap (RR + ACC)'],
   ['ecg_holter', 'ECG Holter'], ['optical_wrist', 'Optical wrist sensor'], ['other', 'Other'],
 ];
 export const TYPE_LABEL = Object.fromEntries(SESSION_TYPES);

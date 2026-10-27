@@ -35,8 +35,8 @@ function Overview({ m, sig }) {
         <MetricTile label="LF/HF" value={num(fd?.lfHf, 2)} sub={fd ? `LF ${num(fd.bands.lf.powerNu, 0)} n.u. · HF ${num(fd.bands.hf.powerNu, 0)} n.u.` : ''} />
         <MetricTile label="SD1" value={num(m.poincare?.sd1, 1)} unit="ms" sub={m.poincare ? `SD2 ${num(m.poincare.sd2, 1)} ms` : ''} />
         <MetricTile label="Respiratory rate" value={num(m.respiratoryRate?.value, 1)} unit="br/min" />
-        <MetricTile label="Training load" value={num(m.trainingLoad, 0)} unit="AU" sub={m.trainingLoad === null ? (m.zonesUnavailableReason || '') : 'Edwards TRIMP'} />
-        <MetricTile label="Movement load" value="—" sub="no accelerometer data" />
+        <MetricTile label="Training load" value={num(m.trainingLoad, 0)} unit="AU" sub={m.trainingLoad === null ? (m.zonesUnavailableReason || '') : 'Banister TRIMP'} />
+        <MetricTile label="Movement load" value={num(m.movementLoad, 2)} unit="RMS·h" sub={m.movementIntensity != null ? `intensity ${num(m.movementIntensity, 2)}` : ''} />
       </div>
       <div className="nb-split">
         <section className="nb-card"><h2 className="nb-card-title">Heart rate over time</h2><HrChart m={m} sig={sig} /></section>
@@ -199,7 +199,8 @@ function Load({ m, sig }) {
           : <p className="nb-muted">{m.zonesUnavailableReason}</p>}
       </section>
       <section className="nb-card"><h2 className="nb-card-title">Movement load</h2>
-        <p className="nb-big">—</p><p className="nb-muted">{m.unavailable?.movementLoad}</p>
+        <p className="nb-big">{num(m.movementLoad, 2)} <span className="nb-muted">RMS·h</span></p>
+        <p className="nb-muted">Intensity {num(m.movementIntensity, 2)} · {m.steps ?? '—'} steps</p>
       </section>
       <section className="nb-card"><h2 className="nb-card-title">Respiratory rate</h2>
         <p className="nb-big">{num(m.respiratoryRate?.value, 1)} <span className="nb-muted">br/min</span></p>

@@ -103,3 +103,25 @@ class HrMaxSettingsOut(ApiModel):
     effective: HrMaxOption | None
     sessions_ready: int
     recomputed_sessions: int | None = None
+
+
+class AdvancedOptionsIn(ApiModel):
+    """Options for the Kubios-style HRV analysis. Unset fields keep their defaults."""
+
+    sample_start_s: float = Field(default=0.0, ge=0, le=86400)
+    sample_length_s: float | None = Field(default=300.0, ge=30, le=86400)
+    correction: str = Field(
+        default="low", pattern="^(none|spec|very_low|low|medium|strong|very_strong)$"
+    )
+    detrend: str = Field(default="smoothness_priors", pattern="^(none|smoothness_priors)$")
+    smoothness_lambda: float = Field(default=500.0, ge=1, le=100000)
+    welch_window_s: float = Field(default=256.0, ge=30, le=600)
+    ar_order: int = Field(default=16, ge=2, le=40)
+    tv_window_s: float = Field(default=60.0, ge=10, le=600)
+    tv_step_s: float = Field(default=10.0, ge=1, le=600)
+
+
+class AdvancedOut(ApiModel):
+    session_id: uuid.UUID
+    metrics: dict[str, Any]
+    series: dict[str, Any]

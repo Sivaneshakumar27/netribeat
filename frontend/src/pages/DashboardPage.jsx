@@ -55,7 +55,7 @@ export default function DashboardPage() {
             <MetricTile label="Avg HR · latest" value={num(latest.avgHr, 0)} unit="bpm" sub={`max ${num(latest.maxHr, 0)} bpm · ${latest.type}`} />
             <MetricTile label="RMSSD · latest" value={num(latest.rmssd, 1)} unit="ms"
               sub={z !== null ? `${z >= 0 ? '+' : ''}${z.toFixed(1)} SD vs your mean` : 'needs ≥ 2 sessions with HRV'} />
-            <MetricTile label="Training load · latest" value={num(latest.trainingLoad, 0)} unit="AU" sub="Edwards TRIMP" />
+            <MetricTile label="Training load · latest" value={num(latest.trainingLoad, 0)} unit="AU" sub="Banister TRIMP" />
             <div className="nb-tile"><div className="nb-tile-label">Signal quality · latest</div>
               <div className="nb-tile-value nb-tile-badge"><QualityBadge quality={latest.quality} reliable={latest.reliable} /></div>
               <div className="nb-tile-sub">{formatDateTime(latest.recordedAt)}</div></div>

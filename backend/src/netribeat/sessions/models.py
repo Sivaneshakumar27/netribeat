@@ -32,8 +32,13 @@ class Recording(Base):
     type: Mapped[str] = mapped_column(String(20))  # training | rest | match | recovery | test
     device: Mapped[str] = mapped_column(String(40))
     notes: Mapped[str | None] = mapped_column(String(500))
+    # Subject details entered on upload (optional; empty -> the owner's profile value)
     age: Mapped[int | None]
     age_source: Mapped[str] = mapped_column(String(10))  # entered | profile | none
+    gender: Mapped[str | None] = mapped_column(String(10))  # male | female | other
+    resting_hr: Mapped[int | None]
+    height_cm: Mapped[int | None]
+    weight_kg: Mapped[float | None] = mapped_column(Float)
     hr_max_manual: Mapped[int | None]  # per-upload override
     recorded_at: Mapped[datetime]
     recorded_at_source: Mapped[str] = mapped_column(String(10))  # file | entered | upload

@@ -15,10 +15,11 @@ dependencies = [
     "argon2-cffi>=23.1,<26",
     "pyjwt>=2.10,<3",
     "redis>=5.2,<6",
-    "reportlab>=4.2,<5",
     "python-multipart>=0.0.18,<0.1",
     "numpy>=2.1,<3",
     "pandas>=2.2,<3",
+    "scipy>=1.14,<2",
+    "matplotlib>=3.9,<4",
 ]
 
 [project.scripts]
@@ -28,7 +29,7 @@ netribeat = "netribeat.cli:main"
 dev = [
     "ruff>=0.8,<0.13",
     "mypy>=1.13,<2",
-    "types-reportlab>=4.2",
+    "scipy-stubs>=1.14",
 ]
 
 [build-system]
@@ -43,7 +44,7 @@ line-length = 100
 target-version = "py312"
 src = ["src"]
 # The engine is copied unchanged from references/ (SES-4, SES-7): never reformat it.
-extend-exclude = ["src/netribeat/engine/decode_hex.py", "src/netribeat/engine/analyse.py", "src/netribeat/engine/derived_metrics"]
+extend-exclude = ["src/netribeat/sessions/engine/decode_hex.py", "src/netribeat/sessions/engine/analyse.py", "src/netribeat/sessions/engine/derived_metrics"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "SIM", "RUF", "N"]
@@ -56,7 +57,7 @@ plugins = ["pydantic.mypy"]
 strict = true
 mypy_path = "src"
 packages = ["netribeat"]
-exclude = ['src/netribeat/engine/(decode_hex|analyse)\.py', 'src/netribeat/engine/derived_metrics/']
+exclude = ['src/netribeat/sessions/engine/(decode_hex|analyse)\.py', 'src/netribeat/sessions/engine/derived_metrics/']
 
 [[tool.mypy.overrides]]
 module = ["analyse", "decode_hex", "derived_metrics.*", "pandas", "pandas.*"]

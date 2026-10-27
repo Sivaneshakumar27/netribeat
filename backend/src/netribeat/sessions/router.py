@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, Form, Query, Response, UploadFile, status
 
@@ -16,6 +16,8 @@ from netribeat.reports import exports, pdf
 from netribeat.sessions import service
 from netribeat.sessions.models import Recording
 from netribeat.sessions.schemas import (
+    AdvancedOptionsIn,
+    AdvancedOut,
     AnalysisOut,
     FileInfo,
     HrMaxSettingsIn,
@@ -145,6 +147,10 @@ async def upload(
     hr_max_manual: Annotated[int | None, Form(alias="hrMaxManual", ge=100, le=230)] = None,
     notes: Annotated[str | None, Form(max_length=500)] = None,
     user_id: Annotated[uuid.UUID | None, Form(alias="userId")] = None,
+    gender: Annotated[Literal["male", "female", "other"] | None, Form()] = None,
+    resting_hr: Annotated[int | None, Form(alias="restingHr", ge=25, le=120)] = None,
+    height_cm: Annotated[int | None, Form(alias="heightCm", ge=80, le=250)] = None,
+    weight_kg: Annotated[float | None, Form(alias="weightKg", ge=20, le=300)] = None,
 ) -> UploadResult:
     data = [(f.filename or "recording.txt", await f.read()) for f in files]
     form = service.UploadForm(
@@ -155,6 +161,10 @@ async def upload(
         hr_max_manual=hr_max_manual,
         notes=notes,
         user_id=user_id,
+        gender=gender,
+        resting_hr=resting_hr,
+        height_cm=height_cm,
+        weight_kg=weight_kg,
     )
     created = await service.upload(db, clock, actor=user, files=data, form=form, ctx=ctx)
     owners = await service.owners(db, created)
@@ -178,10 +188,27 @@ async def get_signals(session_id: uuid.UUID, user: CurrentUser, db: DbDep) -> Si
     return SignalsOut(session_id=rec.id, signals=rec.signals or {})
 
 
-@router.post("/{session_id}/advanced", responses=E, summary="Advanced HRV (not for hex files)")
-async def advanced(session_id: uuid.UUID, user: CurrentUser, db: DbDep) -> Response:
-    await service.get(db, user, session_id)
-    raise Conflict("Advanced HRV is not available for sensor hex files", code="not_available")
+@router.post(
+    "/{session_id}/advanced",
+    response_model=AdvancedOut,
+    responses=error_responses(400, 401, 404, 409),
+    summary="Re-run the Kubios-style HRV analysis (sample, artefact correction, detrending)",
+)
+async def advanced(
+    session_id: uuid.UUID,
+    body: AdvancedOptionsIn,
+    user: CurrentUser,
+    db: DbDep,
+    clock: ClockDep,
+    ctx: ContextDep,
+) -> AdvancedOut:
+    rec = await _ready(db, user, session_id)
+    rec = await service.reanalyse_advanced(db, clock, user, rec, body.model_dump(), ctx)
+    return AdvancedOut(
+        session_id=rec.id,
+        metrics=(rec.metrics or {})["advanced"],
+        series=(rec.signals or {})["advanced"],
+    )
 
 
 @router.get("/{session_id}/report", responses=E, summary="PDF report")

@@ -9,7 +9,7 @@ const SID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const SUMMARY = {
   id: SID, userId: USER.id, userEmail: USER.email, userName: 'Ada L', type: 'rest', recordedAt: '2026-09-04T16:11:54Z',
   durationS: 409, status: 'ready', quality: 'good', reliable: true, avgHr: 80.7, maxHr: 92.8, rmssd: 24.1,
-  trainingLoad: 6.3, movementLoad: null, fileName: 'D4BLHRV_BLHR.csv',
+  trainingLoad: 6.3, movementLoad: null, movementIntensity: null, steps: null, fileName: 'D4BLHRV_BLHR.csv',
 };
 const DETAIL = {
   ...SUMMARY, age: 18, ageSource: 'file', recordedAtSource: 'file', device: 'chest_strap_rr', notes: null, hrMaxManual: null,
@@ -44,12 +44,12 @@ describe('upload', () => {
     const calls = mockApi(signedIn());
     renderApp('/upload');
     await userEvent.click(await screen.findByRole('button', { name: /Upload and analyse/ }));
-    expect(screen.getByText('Choose at least one .json or .csv file')).toBeInTheDocument();
+    expect(screen.getByText('Choose at least one hex file')).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Max HR override (optional)'), '300');
     expect(screen.getByText('Max HR must be 100–230 bpm')).toBeInTheDocument();
     const input = screen.getByLabelText('Choose files');
     await userEvent.upload(input, new File(['x'], 'photo.png', { type: 'image/png' }), { applyAccept: false });
-    expect(screen.getByText('Only .json, .csv and .txt files are supported')).toBeInTheDocument();
+    expect(screen.getByText('Only Synapse hex files (.txt or .hex) are supported')).toBeInTheDocument();
     expect(calls.some((c) => c.path === '/sessions')).toBe(false);
   });
 
@@ -73,14 +73,19 @@ describe('upload', () => {
     renderApp('/upload');
     await userEvent.type(await screen.findByLabelText('Age at recording (optional)'), '29');
     await userEvent.click(screen.getByLabelText('Rest / baseline'));
-    await userEvent.upload(screen.getByLabelText('Choose files'), new File(['{"data":[]}'], 'D1BLHR.json', { type: 'application/json' }));
+    await userEvent.selectOptions(screen.getByLabelText('Gender (optional)'), 'female');
+    await userEvent.type(screen.getByLabelText('Resting HR, bpm (optional)'), '55');
+    await userEvent.upload(screen.getByLabelText('Choose files'), new File(['00'], 'ADA_2026-10-22_08_12_39.txt', { type: 'text/plain' }));
     await userEvent.click(screen.getByRole('button', { name: /Upload and analyse/ }));
     expect(await screen.findByRole('link', { name: 'Open →' })).toHaveAttribute('href', `/sessions/${SID}`);
     expect(xhrs[0].url).toBe('/api/v1/sessions');
     expect(xhrs[0].headers.Authorization).toBe('Bearer t');
     expect(sent.get('type')).toBe('rest');
     expect(sent.get('age')).toBe('29');
-    expect(sent.getAll('files')[0].name).toBe('D1BLHR.json');
+    expect(sent.get('gender')).toBe('female');
+    expect(sent.get('restingHr')).toBe('55');
+    expect(sent.has('heightCm')).toBe(false);
+    expect(sent.getAll('files')[0].name).toBe('ADA_2026-10-22_08_12_39.txt');
     expect(sent.has('userId')).toBe(false);
   });
 
@@ -132,7 +137,7 @@ describe('session view', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Heart rate' }));
     expect(screen.getByText(/210 − age \(age 18\)/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('tab', { name: 'Load & respiration' }));
-    expect(screen.getByText('No accelerometer data in this recording')).toBeInTheDocument();
+    expect(screen.getByText(/Intensity — · — steps/)).toBeInTheDocument();
   });
 
   it('keyboard on a chart shows the crosshair tooltip', async () => {

@@ -50,6 +50,16 @@ END $$;
 """
 
 
+# Columns added after a table first shipped (create_all never alters existing tables).
+_ADD_COLUMNS = """
+ALTER TABLE recordings
+  ADD COLUMN IF NOT EXISTS gender VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS resting_hr INTEGER,
+  ADD COLUMN IF NOT EXISTS height_cm INTEGER,
+  ADD COLUMN IF NOT EXISTS weight_kg DOUBLE PRECISION;
+"""
+
+
 async def init_db(engine: AsyncEngine) -> None:
     """Create any missing tables at startup (idempotent; existing tables are left alone)."""
     import netribeat.auth.models
@@ -58,6 +68,7 @@ async def init_db(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         await conn.execute(text(_RENAME_SEX_TO_GENDER))
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text(_ADD_COLUMNS))
 
 
 async def get_db(request: Request) -> AsyncIterator[AsyncSession]:

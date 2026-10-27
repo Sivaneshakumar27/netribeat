@@ -50,3 +50,6 @@ def configure_logging(level: str = "INFO") -> None:
     # Access logs: uvicorn logs the path including the query string; we replace it
     # with our own middleware log line that omits the query string (CLAUDE.md).
     logging.getLogger("uvicorn.access").disabled = True
+    # PDF rendering libraries log every font subset at INFO.
+    for noisy in ("fontTools", "matplotlib"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)

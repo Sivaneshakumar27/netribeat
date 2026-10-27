@@ -17,14 +17,15 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
-from netribeat import engine
 from netribeat.auth import audit
 from netribeat.auth.models import HrMaxMethod, User
 from netribeat.auth.service import RequestContext
 from netribeat.clock import Clock
 from netribeat.core.errors import Forbidden, NotFound, ValidationFailed
+from netribeat.sessions import engine
 from netribeat.sessions.models import Recording
 from netribeat.sessions.processing import Inputs, ProcessingError, analyse, decode
+from netribeat.sessions.processing import reanalyse_advanced as reanalyse_advanced_hrv
 from netribeat.sessions.schemas import HrMaxOption, HrMaxSettingsOut
 
 MAX_FILES = 10
@@ -46,6 +47,11 @@ class UploadForm:
     hr_max_manual: int | None
     notes: str | None
     user_id: uuid.UUID | None  # admins only
+    # Subject details (optional; empty -> the owner's profile value)
+    gender: str | None = None
+    resting_hr: int | None = None
+    height_cm: int | None = None
+    weight_kg: float | None = None
 
 
 def _visible(stmt: Select[tuple[Recording]], user: User) -> Select[tuple[Recording]]:
@@ -148,8 +154,10 @@ async def _inputs(db: AsyncSession, rec: Recording, owner: User) -> Inputs:
         used = "age" if age is not None else None
     return Inputs(
         age=age,
-        gender=owner.gender.value if owner.gender else None,
-        resting_hr=owner.hr_rest,
+        gender=rec.gender or (owner.gender.value if owner.gender else None),
+        resting_hr=rec.resting_hr or owner.hr_rest,
+        height_cm=rec.height_cm or owner.height_cm,
+        weight_kg=rec.weight_kg or owner.weight_kg,
         max_hr=value,
         max_hr_label=LABELS[used] if used else "",
         max_hr_method=used,
@@ -335,6 +343,10 @@ async def upload(
                 age=age,
                 age_source="entered" if form.age is not None else "profile" if age else "none",
                 hr_max_manual=form.hr_max_manual,
+                gender=form.gender,
+                resting_hr=form.resting_hr,
+                height_cm=form.height_cm,
+                weight_kg=form.weight_kg,
                 recorded_at=fallback,
                 recorded_at_source="file"
                 if from_file
@@ -381,3 +393,33 @@ async def delete(
     )
     await db.delete(rec)
     await db.commit()
+
+
+async def reanalyse_advanced(
+    db: AsyncSession,
+    clock: Clock,
+    user: User,
+    rec: Recording,
+    options: dict[str, object],
+    ctx: RequestContext,
+) -> Recording:
+    """Advanced HRV again with new options; stored, so the screens and the PDF agree."""
+    try:
+        metrics, series = await asyncio.to_thread(
+            reanalyse_advanced_hrv, rec.signals or {}, options
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValidationFailed(str(exc), fields={"options": str(exc)}) from None
+    rec.metrics = {**(rec.metrics or {}), "advanced": metrics}
+    rec.signals = {**(rec.signals or {}), "advanced": series}
+    audit.record(
+        db,
+        action="session.reanalysed",
+        now=clock.now(),
+        actor_id=user.id,
+        target_id=rec.user_id,
+        ip=ctx.ip,
+        details={"session_id": str(rec.id)},
+    )
+    await db.commit()
+    return rec

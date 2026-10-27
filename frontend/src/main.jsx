@@ -6,8 +6,8 @@ import { AuthProvider } from './auth/AuthContext.jsx';
 import './styles/tokens.css';
 import './styles/app.css';
 
-const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+// Light theme everywhere (black and orange brand colours), whatever the system setting.
+document.documentElement.dataset.theme = 'light';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
