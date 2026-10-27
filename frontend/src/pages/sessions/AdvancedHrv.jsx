@@ -110,6 +110,8 @@ export default function AdvancedHrv({ sessionId, metrics, series, onUpdated }) {
   const spec = s.spectrum[method];
   const hist = s.histogram;
   const tv = s.timeVarying;
+  // Corrected RR keeps raw artefact spikes from stretching the axis (older results: raw RR).
+  const tachRr = s.tachogram.rrCorrectedMs || s.tachogram.rrMs;
 
   return (
     <>
@@ -121,11 +123,15 @@ export default function AdvancedHrv({ sessionId, metrics, series, onUpdated }) {
         </div>
         {m.warnings.map((w) => <div key={w} className="nb-alert nb-alert-info">{w}</div>)}
         <h3 className="nb-subtitle">RR data</h3>
+        <p className="nb-muted nb-small">Line: RR after artefact correction. Red rings: corrected beats (hover for the raw value).</p>
         <LineChart title="RR tachogram" height={200}
-          series={[{ name: 'RR', unit: 'ms', xs: s.tachogram.tS, ys: s.tachogram.rrMs, color: 'var(--band-hf)' },
+          series={[{ name: 'RR', unit: 'ms', xs: s.tachogram.tS, ys: tachRr, color: 'var(--band-hf)' },
             ...(smp.tS.length ? [{ name: 'Trend', unit: 'ms', xs: smp.tS, ys: smp.trendMs, color: 'var(--zone-5)' }] : [])].slice(0, 1)}
           bands={smp.tS.length ? [{ from: smp.tS[0], to: smp.tS[smp.tS.length - 1], label: 'Sample', color: 'var(--band-hf)' }] : []}
-          markers={s.tachogram.flags.slice(0, 300).map((i) => ({ x: s.tachogram.tS[i], y: s.tachogram.rrMs[i], color: 'var(--zone-5)' }))}
+          markers={s.tachogram.flags.slice(0, 300).map((i) => ({
+            x: s.tachogram.tS[i], y: tachRr[i], color: 'var(--zone-5)',
+            title: `Corrected beat: raw ${Math.round(s.tachogram.rrMs[i])} ms → ${Math.round(tachRr[i])} ms`,
+          }))}
           xFormat={mmss} yFormat={(v) => Math.round(v)} xLabel="Time" yLabel="RR (ms)" />
         <h3 className="nb-subtitle">Analysed sample with trend</h3>
         <LineChart title="Analysed sample" height={180}

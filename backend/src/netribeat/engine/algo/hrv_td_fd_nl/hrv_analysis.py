@@ -177,6 +177,7 @@ def analyse_advanced(beat_t: F, rr_raw: F, opts: AdvancedOptions) -> AdvancedRes
         "tachogram": {
             "tS": np.round(t_all, 3).tolist(),
             "rrMs": np.round(rr_all, 1).tolist(),
+            "rrCorrectedMs": np.round(rr_c, 1).tolist(),  # after artefact correction
             "flags": np.flatnonzero(flags).tolist(),
         },
         "sample": {
