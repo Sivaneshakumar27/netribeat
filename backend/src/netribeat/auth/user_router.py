@@ -7,22 +7,27 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
 
-from netribeat.api_model import error_responses
 from netribeat.auth.deps import (
     AuthServiceDep,
     ContextDep,
     OutboxDep,
     PrincipalDep,
+    UserServiceDep,
     flush_outbox,
     get_email_sender,
 )
 from netribeat.auth.models import AuthSession
-from netribeat.auth.schemas import SessionList, SessionOut, UserOut
+from netribeat.auth.schemas import (
+    ChangePasswordRequest,
+    ProfileUpdate,
+    SessionList,
+    SessionOut,
+    UserOut,
+)
+from netribeat.auth.user_service import to_user_out
+from netribeat.core.api_model import error_responses
+from netribeat.core.errors import ValidationFailed
 from netribeat.email.service import EmailSender
-from netribeat.errors import ValidationFailed
-from netribeat.users.deps import UserServiceDep
-from netribeat.users.schemas import ChangePasswordRequest, ProfileUpdate
-from netribeat.users.service import to_user_out
 
 router = APIRouter(prefix="/users/me", tags=["Users"])
 E = error_responses(400, 401)

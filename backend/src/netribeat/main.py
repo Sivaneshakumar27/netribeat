@@ -4,13 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
-import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from arq import create_pool
-from arq.connections import RedisSettings
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,30 +17,25 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from netribeat.auth.admin_router import router as admin_router
 from netribeat.auth.password_policy import BreachedPasswordChecker, HibpRangeChecker, NoBreachCheck
 from netribeat.auth.router import router as auth_router
 from netribeat.auth.security import TokenCodec
+from netribeat.auth.user_router import router as users_router
 from netribeat.clock import Clock, SystemClock
-from netribeat.config import JobBackend, Settings, get_settings
-from netribeat.core.emails import INVALID_EMAIL_MESSAGE
+from netribeat.config import Settings, get_settings
+from netribeat.core.errors import AppError
+from netribeat.core.logging_config import configure_logging
 from netribeat.core.middleware import (
     AccessLogMiddleware,
     BodyLimitMiddleware,
     SecurityHeadersMiddleware,
 )
 from netribeat.core.ratelimit import RateLimiter, RedisRateLimiter
-from netribeat.core.storage import LocalStorage, Storage
-from netribeat.db import make_engine, make_sessionmaker
+from netribeat.db import init_db, make_engine, make_sessionmaker
 from netribeat.email.service import EmailSender, build_email_sender
-from netribeat.errors import AppError
+from netribeat.email.validation import INVALID_EMAIL_MESSAGE
 from netribeat.health.router import router as health_router
-from netribeat.logging_config import configure_logging
-from netribeat.sessions.jobs import ArqJobQueue, InlineJobQueue
-from netribeat.sessions.processing import process_session
-from netribeat.sessions.router import hrmax_router
-from netribeat.sessions.router import router as sessions_router
-from netribeat.users.admin_router import router as admin_router
-from netribeat.users.router import router as users_router
 
 log = logging.getLogger(__name__)
 
@@ -142,8 +134,6 @@ def create_app(
     limiter: RateLimiter | None = None,
     email_sender: EmailSender | None = None,
     breach_checker: BreachedPasswordChecker | None = None,
-    storage: Storage | None = None,
-    inline_jobs_wait: bool = False,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
@@ -151,6 +141,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = make_engine(settings.database_url)
+        await init_db(engine)
         app.state.engine = engine
         app.state.sessionmaker = make_sessionmaker(engine)
         redis: Redis | None = None
@@ -158,15 +149,9 @@ def create_app(
             redis = Redis.from_url(settings.redis_url, decode_responses=True)
             app.state.limiter = RedisRateLimiter(redis)
         app.state.redis = redis
-        arq_pool = None
-        if settings.job_backend is JobBackend.ARQ:
-            arq_pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
-            app.state.job_queue = ArqJobQueue(arq_pool)
         try:
             yield
         finally:
-            if arq_pool is not None:
-                await arq_pool.aclose()
             if redis is not None:
                 await redis.aclose()
             await engine.dispose()
@@ -175,10 +160,8 @@ def create_app(
         title="NetriBeat API",
         version="0.2.0",
         description=(
-            "Backend for NetriBeat. All signal processing runs on the backend. "
-            "Upload Movesense JSON (ECG or RR) or CSV ECG files to /sessions. "
-            "A `user` sees only their own data; an `admin` sees everything. "
-            "See docs/api.md for the compatibility notes against the original api-spec.yaml."
+            "Backend for NetriBeat: registration with email verification, login "
+            "(user and admin), password reset, profile and admin user management."
         ),
         lifespan=lifespan,
         docs_url="/api/docs" if settings.docs_enabled else None,
@@ -194,28 +177,11 @@ def create_app(
         HibpRangeChecker() if settings.hibp_check_enabled else NoBreachCheck()
     )
     app.state.codec = TokenCodec(settings.jwt_secret.get_secret_value(), settings.jwt_algorithm)
-    app.state.storage = storage or LocalStorage(settings.storage_dir)
-
-    async def _process(session_id: uuid.UUID) -> None:
-        await process_session(
-            app.state.sessionmaker,
-            app.state.storage,
-            app.state.clock,
-            session_id,
-            timeout_s=settings.analysis_timeout_seconds,
-        )
-
-    # Development/tests run analysis in-process; ARQ replaces this queue in the lifespan.
-    app.state.job_queue = InlineJobQueue(_process, wait=inline_jobs_wait)
 
     install_exception_handlers(app)
 
     # Order: the last added runs first (outermost).
-    app.add_middleware(
-        BodyLimitMiddleware,
-        max_bytes=settings.max_json_body_bytes,
-        overrides={f"{API_PREFIX}/sessions": settings.max_upload_request_bytes},
-    )
+    app.add_middleware(BodyLimitMiddleware, max_bytes=settings.max_json_body_bytes)
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production)
     if settings.cors_origins:
         app.add_middleware(
@@ -228,14 +194,7 @@ def create_app(
         )
     app.add_middleware(AccessLogMiddleware)
 
-    for router in (
-        health_router,
-        auth_router,
-        users_router,
-        admin_router,
-        sessions_router,
-        hrmax_router,
-    ):
+    for router in (health_router, auth_router, users_router, admin_router):
         app.include_router(router, prefix=API_PREFIX)
     return app
 

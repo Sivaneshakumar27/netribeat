@@ -71,17 +71,16 @@ git push -u origin main
    `postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?ssl=require`
    (Tested: `sslmode=…` makes the driver fail with *unexpected keyword argument
    'sslmode'*; `ssl=require` connects with TLS 1.3.)
-4. **Create the tables and your admin from your PC** (PowerShell, in `backend`):
+4. **Create your admin from your PC** (PowerShell, in `backend`):
 
 ```powershell
 cd D:\sivanesh\netribeat\netribeat\backend
 $env:DATABASE_URL = "postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?ssl=require"
-uv run alembic upgrade head        # shows Running upgrade -> 0001, 0002, 0003
 uv run netribeat create-admin --email you@example.org --first-name You --last-name Admin
 Remove-Item Env:DATABASE_URL       # back to your local database
 ```
 
-(Render also runs `alembic upgrade head` automatically each time it starts.)
+(The backend creates any missing tables itself every time it starts.)
 
 **Optional: copy your existing local data to Neon.** Only analysis results move;
 uploaded original files don't. If your local PostgreSQL runs in Docker
@@ -142,7 +141,6 @@ running it twice to get two different values.
 PORT=8000
 WEB_CONCURRENCY=1
 ENVIRONMENT=development
-JOB_BACKEND=inline
 API_DOCS_ENABLED=false
 COOKIE_SECURE=true
 DATABASE_URL=postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?ssl=require

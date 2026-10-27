@@ -10,16 +10,17 @@ from urllib.parse import urlsplit
 from fastapi import BackgroundTasks, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from netribeat.auth.models import Role, User
 from netribeat.auth.password_policy import BreachedPasswordChecker
 from netribeat.auth.security import TokenCodec
 from netribeat.auth.service import AuthService, Outbox, RequestContext
+from netribeat.auth.user_service import UserService
 from netribeat.clock import Clock
 from netribeat.config import Settings
+from netribeat.core.errors import Forbidden, Unauthorized
 from netribeat.core.ratelimit import RateLimiter
 from netribeat.db import get_db
 from netribeat.email.service import EmailSender, deliver
-from netribeat.errors import Forbidden, Unauthorized
-from netribeat.users.models import Role, User
 
 REFRESH_COOKIE = "nb_refresh"
 REFRESH_COOKIE_PATH = "/api/v1/auth"
@@ -153,3 +154,12 @@ async def csrf_protect(request: Request, settings: SettingsDep) -> None:
     origin = request.headers.get("origin")
     if origin is not None and origin.rstrip("/") not in _allowed_origins(settings):
         raise Forbidden("Origin not allowed", code="csrf_failed")
+
+
+def get_user_service(
+    db: DbDep, clock: ClockDep, settings: SettingsDep, outbox: OutboxDep
+) -> UserService:
+    return UserService(db=db, clock=clock, settings=settings, outbox=outbox)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]

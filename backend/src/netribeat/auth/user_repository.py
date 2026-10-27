@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from netribeat.users.models import Role, User
+from netribeat.auth.models import Role, User
 
 
 class UserSort(StrEnum):

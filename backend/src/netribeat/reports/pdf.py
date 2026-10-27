@@ -23,7 +23,11 @@ from reportlab.platypus import (
 )
 
 from netribeat.reports.exports import provenance
-from netribeat.sessions.models import AnalysisResult, Session, SessionFile
+
+# Reports take any objects with the expected attributes (the analysis models plug in later).
+type Session = Any
+type AnalysisResult = Any
+type SessionFile = Any
 
 ACCENT = colors.HexColor("#b4460a")
 MUTED = colors.HexColor("#5c5852")

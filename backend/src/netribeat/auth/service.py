@@ -20,9 +20,17 @@ from datetime import datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from netribeat.audit import service as audit
+from netribeat.auth import audit
 from netribeat.auth import repository as repo
-from netribeat.auth.models import AuthChallenge, AuthSession, ChallengePurpose
+from netribeat.auth import user_repository as users_repo
+from netribeat.auth.models import (
+    AuthChallenge,
+    AuthSession,
+    ChallengePurpose,
+    Role,
+    User,
+    UserSource,
+)
 from netribeat.auth.password_policy import BreachedPasswordChecker, PasswordPolicy
 from netribeat.auth.security import (
     TokenCodec,
@@ -36,9 +44,7 @@ from netribeat.auth.security import (
 )
 from netribeat.clock import Clock
 from netribeat.config import Settings
-from netribeat.core.ratelimit import RateLimiter
-from netribeat.email.service import OutgoingEmail, render
-from netribeat.errors import (
+from netribeat.core.errors import (
     BadRequest,
     Conflict,
     Forbidden,
@@ -48,8 +54,8 @@ from netribeat.errors import (
     Unauthorized,
     ValidationFailed,
 )
-from netribeat.users import repository as users_repo
-from netribeat.users.models import Role, User, UserSource
+from netribeat.core.ratelimit import RateLimiter
+from netribeat.email.service import OutgoingEmail, render
 
 log = logging.getLogger(__name__)
 

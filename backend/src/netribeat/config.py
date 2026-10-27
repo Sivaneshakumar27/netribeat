@@ -22,11 +22,6 @@ class Environment(StrEnum):
     PRODUCTION = "production"
 
 
-class JobBackend(StrEnum):
-    INLINE = "inline"  # analysis runs inside the API process (development only)
-    ARQ = "arq"  # durable Redis queue + separate worker process (production)
-
-
 class EmailBackend(StrEnum):
     CONSOLE = "console"  # prints mail to stdout; development only
     FILE = "file"  # writes .eml files to EMAIL_FILE_DIR; development only
@@ -46,7 +41,6 @@ class Settings(BaseSettings):
     # --- infrastructure ---
     database_url: str = Field(description="postgresql+asyncpg://user:pass@host:5432/db")
     redis_url: str = "redis://localhost:6379/0"
-    storage_dir: Path = Path("./var/storage")
 
     # --- tokens ---
     jwt_secret: SecretStr
@@ -101,12 +95,6 @@ class Settings(BaseSettings):
     smtp_ssl: bool = False
     smtp_timeout_seconds: float = 15.0
 
-    # --- recordings ---
-    job_backend: JobBackend = JobBackend.INLINE
-    max_upload_file_bytes: int = Field(default=50 * 1024 * 1024, ge=1024)  # 50 MB per file
-    max_upload_files: int = Field(default=10, ge=1, le=50)
-    analysis_timeout_seconds: int = Field(default=600, ge=30)
-
     # --- misc ---
     log_level: str = "INFO"
     # Interactive docs (/api/docs, /api/redoc, /api/openapi.json). Default: on except in
@@ -149,8 +137,6 @@ class Settings(BaseSettings):
                 problems.append("CORS_ORIGINS must list the frontend origin(s)")
             if any(o == "*" for o in self.cors_origins):
                 problems.append("CORS_ORIGINS must not contain '*'")
-            if self.job_backend is not JobBackend.ARQ:
-                problems.append("JOB_BACKEND must be arq (durable background jobs)")
             if not self.frontend_base_url.startswith("https://"):
                 problems.append("FRONTEND_BASE_URL must be https")
             if problems:
@@ -168,10 +154,6 @@ class Settings(BaseSettings):
         if self.api_docs_enabled is not None:
             return self.api_docs_enabled
         return not self.is_production
-
-    @property
-    def max_upload_request_bytes(self) -> int:
-        return self.max_upload_files * self.max_upload_file_bytes + 1024 * 1024
 
 
 @lru_cache

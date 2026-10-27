@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from netribeat.audit.models import AuditEvent
+from netribeat.auth.models import AuditEvent
 
 FORBIDDEN_DETAIL_KEYS = frozenset({"email", "password", "otp", "code", "token", "reset_token"})
 

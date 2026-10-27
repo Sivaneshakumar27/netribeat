@@ -7,23 +7,20 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response, status
 
-from netribeat.api_model import error_responses
-from netribeat.audit import service as audit_service
+from netribeat.auth import audit as audit_service
 from netribeat.auth.deps import (
     AdminUser,
     AuthServiceDep,
     ContextDep,
     DbDep,
     OutboxDep,
+    UserServiceDep,
     flush_outbox,
     get_email_sender,
     require_admin,
 )
-from netribeat.email.service import EmailSender
-from netribeat.users.deps import UserServiceDep
-from netribeat.users.models import Role
-from netribeat.users.repository import UserFilter, UserSort
-from netribeat.users.schemas import (
+from netribeat.auth.models import Role
+from netribeat.auth.schemas import (
     AdminCreateUser,
     AdminSetActive,
     AdminSetRole,
@@ -32,7 +29,10 @@ from netribeat.users.schemas import (
     AuditEventList,
     AuditEventOut,
 )
-from netribeat.users.service import to_admin_user_out
+from netribeat.auth.user_repository import UserFilter, UserSort
+from netribeat.auth.user_service import to_admin_user_out
+from netribeat.core.api_model import error_responses
+from netribeat.email.service import EmailSender
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(require_admin)])
 E = error_responses(400, 401, 403, 404)

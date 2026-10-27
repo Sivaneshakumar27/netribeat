@@ -9,15 +9,15 @@ from collections.abc import Sequence
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from netribeat.audit import service as audit
+from netribeat.auth import audit
+from netribeat.auth import user_repository as repo
+from netribeat.auth.models import Role, User, UserSource
 from netribeat.auth.service import Outbox, RequestContext, revoke_user_sessions
+from netribeat.auth.user_repository import UserFilter, UserSort
 from netribeat.clock import Clock
 from netribeat.config import Settings
+from netribeat.core.errors import BadRequest, Conflict, Forbidden, NotFound
 from netribeat.email.service import OutgoingEmail, render
-from netribeat.errors import BadRequest, Conflict, Forbidden, NotFound
-from netribeat.users import repository as repo
-from netribeat.users.models import Role, User, UserSource
-from netribeat.users.repository import UserFilter, UserSort
 
 
 def to_user_out(user: User) -> dict[str, object]:

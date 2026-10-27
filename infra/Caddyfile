@@ -22,14 +22,6 @@
 		-Server
 	}
 
-	# Recording upload: up to 10 files × 50 MB (the API enforces the exact limits).
-	handle /api/v1/sessions {
-		request_body {
-			max_size 512MB
-		}
-		reverse_proxy {$API_UPSTREAM:api:8000}
-	}
-
 	# API: everything under /api goes to FastAPI (which sets its own strict CSP).
 	handle /api/* {
 		request_body {

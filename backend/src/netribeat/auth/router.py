@@ -6,7 +6,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Request, Response, status
 
-from netribeat.api_model import error_responses
 from netribeat.auth.deps import (
     REFRESH_COOKIE,
     REFRESH_COOKIE_PATH,
@@ -33,10 +32,11 @@ from netribeat.auth.schemas import (
     VerifyResetOtpRequest,
 )
 from netribeat.auth.service import IssuedSession
+from netribeat.auth.user_service import to_user_out
 from netribeat.config import Settings
+from netribeat.core.api_model import error_responses
+from netribeat.core.errors import Unauthorized
 from netribeat.email.service import EmailSender
-from netribeat.errors import Unauthorized
-from netribeat.users.service import to_user_out
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 

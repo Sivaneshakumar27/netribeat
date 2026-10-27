@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import Request
-from sqlalchemy import DateTime, MetaData
+from sqlalchemy import DateTime, MetaData, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -36,6 +36,27 @@ def make_engine(database_url: str, **kwargs: Any) -> AsyncEngine:
 
 def make_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(engine, expire_on_commit=False)
+
+
+# Databases created before 0004 named this column/type "sex"; rename in place (keeps values).
+_RENAME_SEX_TO_GENDER = """
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'users' AND column_name = 'sex') THEN
+    ALTER TYPE sex RENAME TO gender;
+    ALTER TABLE users RENAME COLUMN sex TO gender;
+  END IF;
+END $$;
+"""
+
+
+async def init_db(engine: AsyncEngine) -> None:
+    """Create any missing tables at startup (idempotent; existing tables are left alone)."""
+    import netribeat.auth.models  # noqa: F401  (registers every table)
+
+    async with engine.begin() as conn:
+        await conn.execute(text(_RENAME_SEX_TO_GENDER))
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_db(request: Request) -> AsyncIterator[AsyncSession]:

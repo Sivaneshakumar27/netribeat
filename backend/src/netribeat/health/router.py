@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response, status
 from sqlalchemy import text
 
-from netribeat.api_model import ApiModel
+from netribeat.core.api_model import ApiModel
 
 router = APIRouter(tags=["Health"])
 

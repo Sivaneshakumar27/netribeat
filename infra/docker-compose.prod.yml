@@ -25,8 +25,6 @@ x-api-env: &api-env
   PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-12}
   HIBP_CHECK_ENABLED: ${HIBP_CHECK_ENABLED:-true}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
-  JOB_BACKEND: arq
-  STORAGE_DIR: /data/storage
 
 services:
   postgres:
@@ -62,29 +60,9 @@ services:
       dockerfile: infra/Dockerfile.backend
     restart: unless-stopped
     environment: *api-env
-    volumes:
-      - storage:/data/storage   # uploaded recordings (opaque file names)
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-
-  # Background analysis (Arq). Scale with: docker compose ... up -d --scale worker=2
-  worker:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile.backend
-    restart: unless-stopped
-    environment: *api-env
-    command: ["arq", "netribeat.sessions.worker.WorkerSettings"]
-    healthcheck:
-      test: ["CMD", "arq", "--check", "netribeat.sessions.worker.WorkerSettings"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-    volumes:
-      - storage:/data/storage
-    depends_on:
-      api: { condition: service_healthy }
 
   web:
     build:
@@ -118,6 +96,5 @@ services:
 
 volumes:
   pgdata:
-  storage:
   caddy_data:
   caddy_config:

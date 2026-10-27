@@ -8,7 +8,10 @@ import json
 from datetime import datetime
 from typing import Any
 
-from netribeat.sessions.models import AnalysisResult, Session, SessionFile
+# Reports take any objects with the expected attributes (the analysis models plug in later).
+type Session = Any
+type AnalysisResult = Any
+type SessionFile = Any
 
 CSV_DATASETS = ("metrics", "hr", "rr", "psd")
 

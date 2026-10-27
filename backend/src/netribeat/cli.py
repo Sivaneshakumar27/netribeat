@@ -25,16 +25,16 @@ from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from netribeat.audit import service as audit
+from netribeat.auth import audit
+from netribeat.auth import user_repository as users_repo
+from netribeat.auth.models import Role, User, UserSource
 from netribeat.auth.password_policy import PasswordPolicy
 from netribeat.auth.security import hash_password
 from netribeat.auth.service import cleanup_expired, revoke_user_sessions
 from netribeat.clock import Clock, SystemClock
 from netribeat.config import ABSOLUTE_MIN_PASSWORD_LENGTH
-from netribeat.core.emails import validated_email
-from netribeat.db import make_engine, make_sessionmaker
-from netribeat.users import repository as users_repo
-from netribeat.users.models import Role, User, UserSource
+from netribeat.db import init_db, make_engine, make_sessionmaker
+from netribeat.email.validation import validated_email
 
 
 class CliSettings(BaseSettings):
@@ -218,9 +218,6 @@ def _parser() -> argparse.ArgumentParser:
         sp = sub.add_parser(name, help=help_text)
         sp.add_argument("--email", required=True)
 
-    cf = sub.add_parser("check-file", help="Check whether recording files can be analysed")
-    cf.add_argument("paths", nargs="+", help="One or more .json / .csv files")
-
     sub.add_parser("list-admins", help="List administrator accounts")
     sub.add_parser("cleanup", help="Expire challenges and delete stale sign-ups/sessions")
     return p
@@ -290,57 +287,8 @@ async def _run(
                 out.write(f"{await cleanup_expired(db, clock.now())}\n")
 
 
-def check_files(paths: Sequence[str], out: TextIO) -> int:
-    """Run the real parser and analysis on local files and explain the result.
-    Needs no database or settings. Returns the number of files that failed."""
-    from pathlib import Path
-
-    from netribeat.analysis.pipeline import analyse
-    from netribeat.parsers.base import ParserError
-    from netribeat.parsers.registry import parse_file
-
-    failed = 0
-    for p in paths:
-        path = Path(p)
-        out.write(f"\n{path.name}\n")
-        try:
-            raw = path.read_bytes()
-        except OSError as exc:
-            out.write(f"  cannot read the file: {exc.strerror}\n")
-            failed += 1
-            continue
-        if path.suffix.lower() not in {".json", ".csv", ".txt"}:
-            out.write("  NOTE: uploads accept only .json and .csv file names\n")
-        try:
-            rec = parse_file(path.name, raw)
-        except ParserError as exc:
-            out.write(f"  NOT SUPPORTED: {exc}\n")
-            failed += 1
-            continue
-        m = analyse(rec).metrics
-        out.write(f"  format: {rec.format} ({rec.kind.value}), duration {rec.duration_s:.0f} s")
-        out.write(f", {rec.fs_hz:g} Hz" if rec.fs_hz else "")
-        out.write(f", age in file: {rec.metadata['age']}\n" if "age" in rec.metadata else "\n")
-        rel = m["reliability"]
-        out.write(
-            f"  quality: {m['quality']}, beat detection "
-            f"{'reliable' if rel['reliable'] else 'UNRELIABLE'} "
-            f"(coverage {rel['beatCoverage'] * 100:.0f} %)\n"
-        )
-        hr = m["hr"]
-        if hr["avg"] is not None:
-            out.write(f"  heart rate: avg {hr['avg']} bpm (min {hr['min']}, max {hr['max']})\n")
-        if m["timeDomain"]:
-            out.write(f"  RMSSD {m['timeDomain']['rmssd']} ms, SDNN {m['timeDomain']['sdnn']} ms\n")
-        for w in m["warnings"]:
-            out.write(f"  warning: {w}\n")
-    return failed
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    if args.command == "check-file":  # works without a database or .env
-        return 1 if check_files(args.paths, sys.stdout) else 0
     try:
         settings = get_cli_settings()
     except ValidationError:
@@ -349,6 +297,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     async def runner() -> None:
         engine = make_engine(settings.database_url)
+        await init_db(engine)
         try:
             await _run(args, settings, make_sessionmaker(engine), SystemClock(), sys.stdout)
         finally:
