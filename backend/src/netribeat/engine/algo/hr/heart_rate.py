@@ -1,7 +1,7 @@
-"""Heart rate: a smoothed HR time series and session min / average / max HR.
+"""Heart rate: a smoothed HR time series.
 
-Port of lib-netrin `time_series/heart_rate` (`process_hr`) and `metrics/heart_rate.py`,
-called by svc-sessions `algo/pipeline.py` with 3 s buckets and decay 0.7.
+Port of lib-netrin `time_series/heart_rate` (`process_hr`), called by svc-sessions
+`algo/pipeline.py` with 3 s buckets and decay 0.7.
 
     HR per beat -> capped-step smoothing -> median per 3 s -> exponential smoothing (0.7)
                 -> HR outside 28-230 bpm removed
@@ -9,7 +9,7 @@ called by svc-sessions `algo/pipeline.py` with 3 s buckets and decay 0.7.
 
 import numpy as np
 
-from .common import bucket, exp_decay
+from netribeat.engine.algo.common import bucket, exp_decay
 
 HR_DECAY = 0.7
 MIN_HR, MAX_HR = 28, 230  # plausible HR range (bpm)
@@ -46,30 +46,3 @@ def hr_time_series(hr, decay=HR_DECAY):
     if series["value"].isna().all():
         raise ValueError("No valid HR detected")
     return series
-
-
-def plausible(hr):
-    hr = np.asarray(hr, dtype=float)
-    return hr[(hr >= MIN_HR) & (hr <= MAX_HR)]
-
-
-def max_hr(hr):
-    """Highest HR in a stable stretch: 3 values in a row within 5 bpm, so spikes don't count."""
-    hr = plausible(hr)
-    windows = np.lib.stride_tricks.sliding_window_view(hr, 3)
-    stable = np.concatenate([[False], windows.max(axis=1) - windows.min(axis=1) < 5, [False]])
-    return round(float(hr[stable].max()), 3)
-
-
-def min_hr(hr):
-    """1st percentile, so a few low outliers don't count."""
-    return round(float(np.percentile(plausible(hr), 1)), 3)
-
-
-def avg_hr(hr):
-    return round(float(np.mean(plausible(hr))), 3)
-
-
-def hr_metrics(hr):
-    """Session max / min / average HR from the smoothed HR values."""
-    return {"max_hr": max_hr(hr), "min_hr": min_hr(hr), "avg_hr": avg_hr(hr)}

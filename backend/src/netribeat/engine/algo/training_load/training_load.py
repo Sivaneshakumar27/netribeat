@@ -7,7 +7,7 @@ from heart_rate.hr_time_series().
 
 import numpy as np
 
-from .common import durations_s
+from netribeat.engine.algo.common import durations_s
 
 DEFAULT_RESTING_HR = 50  # lib-netrin get_default_min_hr()
 ZONE_FRACTIONS = [0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # zone 0-6 lower bounds, fraction of max HR

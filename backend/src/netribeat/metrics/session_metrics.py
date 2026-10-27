@@ -1,17 +1,15 @@
-"""Run the analysis on a hex file and shape its output for the API, the frontend and the PDF.
+"""Full session output: runs every algorithm on one decoded session and shapes the result for
+the API, the frontend and the PDF.
 
-* engine/  (unchanged reference code): decoding, HR, zones, training load, movement load.
-* hrv/     Kubios-style HRV from the decoded RR intervals: time and frequency domain,
-           Poincaré, nonlinear, ANS components, respiratory rate.
+    hex_decoder → rr_interval → preprocessing → engine/algo/* → metrics (this file)
 
-This file only picks the session out of the file, chooses the inputs (age, gender, max HR,
-resting HR) and renames fields.
+It only chooses the inputs (athlete age, gender, max HR, resting HR), calls the algorithms and
+names the fields; every number comes from engine/ and metrics/derived_metrics + hrv_metrics.
 """
 
 from __future__ import annotations
 
 import math
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -19,34 +17,32 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from netribeat.sessions import engine
-from netribeat.sessions.hrv import spectral
-from netribeat.sessions.hrv.advanced import AdvancedOptions, analyse_advanced
-from netribeat.sessions.hrv.artefacts import correct_artefacts
+from netribeat.engine.algo.hr.heart_rate import hr_time_series
+from netribeat.engine.algo.hrv_td_fd_nl.frequency_domain import lomb_scargle_frequency_domain
+from netribeat.engine.algo.hrv_td_fd_nl.nonlinear import poincare
+from netribeat.engine.algo.hrv_td_fd_nl.time_domain import basic_time_domain
+from netribeat.engine.algo.max_min_avg_hr.hr_statistics import hr_metrics
+from netribeat.engine.algo.movement_load.movement_load import movement_metrics, rms_time_series
+from netribeat.engine.algo.respiration_rate.respiration_rate import (
+    respiratory_per_minute,
+    respiratory_rate,
+)
+from netribeat.engine.algo.training_load.training_load import (
+    DEFAULT_RESTING_HR,
+    hr_zones,
+    theoretical_max_hr,
+    zone_durations_ms,
+    zone_thresholds,
+)
+from netribeat.metrics.derived_metrics import analyse_session, item
+from netribeat.metrics.hrv_metrics import AdvancedOptions, analyse_advanced
+from netribeat.preprocessing.artefact_correction import correct_artefacts
+from netribeat.rr_interval.rr_intervals import rr_intervals
 
 ANALYSIS_VERSION = "hex-1.1"
 ZONE_KEYS = ["belowZ1", "z1", "z2", "z3", "z4", "z5"]  # engine zones 0-5
 HRV_WINDOW_S = 300.0  # spec HRV: first 5 minutes of the corrected RR series
 HRV_MIN_BEATS = 30
-
-
-_NAMED_FILE = re.compile(r"^(?P<name>.+?)_\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2}$")
-
-
-def name_from_filename(file_name: str) -> str | None:
-    """The athlete name in `NAME_YYYY-MM-DD_HH_MM_SS.txt`, or None for other file names."""
-    stem = file_name.rsplit("/", 1)[-1].rsplit("\\", 1)[-1].rsplit(".", 1)[0]
-    m = _NAMED_FILE.match(stem)
-    return m["name"].replace("_", " ").strip() or None if m else None
-
-
-def athlete_name(entered: str | None, file_name: str) -> str | None:
-    """Entered on upload first, then the file name; None when neither has one."""
-    return (entered or "").strip() or name_from_filename(file_name)
-
-
-class ProcessingError(Exception):
-    """A user-facing reason the file can't be analysed."""
 
 
 @dataclass(frozen=True)
@@ -70,20 +66,6 @@ class Result:
     signals: dict[str, Any]
 
 
-def decode(data: bytes, file_name: str, fallback_start_ms: int) -> list[pd.DataFrame]:
-    """All sessions in a hex file. The start time comes from the file name when it has one."""
-    start_ms = engine.start_time_from_filename(file_name) or fallback_start_ms
-    try:
-        sessions: list[pd.DataFrame] = engine.decode_hex(data, start_ms)
-    except UnicodeDecodeError:
-        raise ProcessingError("Not a Synapse hex file (the file is not text)") from None
-    except ValueError as exc:
-        raise ProcessingError(f"Not a usable Synapse hex file: {exc}") from None
-    if not sessions:
-        raise ProcessingError("The file has no session long enough to analyse")
-    return sessions
-
-
 def _zones_and_load(
     df: pd.DataFrame, hr: pd.DataFrame, inputs: Inputs
 ) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, float] | None, str | None]:
@@ -96,15 +78,15 @@ def _zones_and_load(
     if inputs.max_hr is None and inputs.age is None:
         return {}, None, None, reason
 
-    max_hr = inputs.max_hr or engine.theoretical_max_hr(inputs.age)
+    max_hr = inputs.max_hr or theoretical_max_hr(inputs.age)
     if reason is None:
-        out = engine.analyse_session(df, inputs.age, inputs.gender, max_hr, inputs.resting_hr)
+        out = analyse_session(df, inputs.age, inputs.gender, max_hr, inputs.resting_hr)
         ms = out["training_metrics"]["hr_zone_durations"]
     else:  # zones need only max HR; training load also needs gender
         out = {}
-        resting = inputs.resting_hr or engine.DEFAULT_RESTING_HR
-        thresholds = engine.zone_thresholds(max_hr, resting)
-        ms = engine.zone_durations_ms(hr["timestamp"], engine.hr_zones(hr["value"], thresholds))
+        resting = inputs.resting_hr or DEFAULT_RESTING_HR
+        thresholds = zone_thresholds(max_hr, resting)
+        ms = zone_durations_ms(hr["timestamp"], hr_zones(hr["value"], thresholds))
     hr_max = {
         "value": round(max_hr),
         "method": inputs.max_hr_method or "age",
@@ -136,12 +118,12 @@ def _hrv(t: np.ndarray, rr: np.ndarray, duration_s: float) -> dict[str, Any]:
         rr_w, t_w = corr.corrected[win], t[win]
         out["inWindow"] = int(win.sum())
         if rr_w.size >= HRV_MIN_BEATS:
-            fd = spectral.frequency_domain(t_w, rr_w)
-            out["timeDomain"] = spectral.time_domain(rr_w)
+            fd = lomb_scargle_frequency_domain(t_w, rr_w)
+            out["timeDomain"] = basic_time_domain(rr_w)
             out["frequencyDomain"] = fd
-            out["poincare"] = spectral.poincare(rr_w)
-            out["respiratoryRate"] = spectral.respiratory_rate(fd["bands"]["hf"]["peakHz"])
-            out["perMinute"] = spectral.respiratory_per_minute(t, corr.corrected, duration_s)
+            out["poincare"] = poincare(rr_w)
+            out["respiratoryRate"] = respiratory_rate(fd["bands"]["hf"]["peakHz"])
+            out["perMinute"] = respiratory_per_minute(t, corr.corrected, duration_s)
     adv = analyse_advanced(t, rr, AdvancedOptions())
     out["advanced"], out["advancedSeries"] = adv.metrics, adv.series
     return out
@@ -155,27 +137,22 @@ def analyse(df: pd.DataFrame, inputs: Inputs) -> Result:
     def rel_s(ts: pd.Series) -> list[float]:
         return [round((t.value // 1_000_000 - t0) / 1000, 3) for t in ts]
 
-    hr = engine.hr_time_series(engine.item(df, "hr"))
+    hr = hr_time_series(item(df, "hr"))
     engine_out, hr_max, time_in_zones, reason = _zones_and_load(df, hr, inputs)
     if not engine_out:
         engine_out = {
-            "hr_metrics": engine.hr_metrics(hr["value"]),
-            "movement_metrics": engine.movement_metrics(
-                engine.rms_time_series(engine.item(df, "rms"))
-            ),
+            "hr_metrics": hr_metrics(hr["value"]),
+            "movement_metrics": movement_metrics(rms_time_series(item(df, "rms"))),
         }
     hrm, mov = engine_out["hr_metrics"], engine_out["movement_metrics"]
     tm = engine_out.get("training_metrics") or {}
 
-    # Beats: "rrt" is the RR from each beat to the next; a beat's RR ends at t + RR.
-    beats = engine.item(df, "rrt").dropna(subset=["value"])
-    rr = beats["value"].to_numpy(dtype=float)
-    t_end = np.asarray(rel_s(beats["timestamp"]), dtype=float) + rr / 1000
+    t_end, rr = rr_intervals(df, t0)
     hrv = _hrv(t_end, rr, duration_s)
     flags = hrv["flags"]
     coverage = float(rr[~flags].sum()) / 1000 / duration_s if duration_s else 0.0
-    steps = engine.item(df, "steps")
-    rms = engine.rms_time_series(engine.item(df, "rms"))
+    steps = item(df, "steps")
+    rms = rms_time_series(item(df, "rms"))
     hr_valid = hr.dropna(subset=["value"])
 
     metrics = {

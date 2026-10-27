@@ -12,10 +12,9 @@ from netribeat.auth.deps import ClockDep, ContextDep, CurrentUser, DbDep
 from netribeat.auth.models import User
 from netribeat.core.api_model import error_responses
 from netribeat.core.errors import Conflict, NotFound
-from netribeat.reports import exports, pdf
-from netribeat.sessions import service
-from netribeat.sessions.models import Recording
-from netribeat.sessions.schemas import (
+from netribeat.recordings import service
+from netribeat.recordings.models import Recording
+from netribeat.recordings.schemas import (
     AdvancedOptionsIn,
     AdvancedOut,
     AnalysisOut,
@@ -27,6 +26,7 @@ from netribeat.sessions.schemas import (
     SignalsOut,
     UploadResult,
 )
+from netribeat.reports import exports, pdf
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 E = error_responses(400, 401, 404)

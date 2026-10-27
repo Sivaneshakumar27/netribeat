@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from netribeat.sessions.models import Recording
+from netribeat.recordings.models import Recording
 
 CSV_DATASETS = ("metrics", "hr", "rr", "rms")
 

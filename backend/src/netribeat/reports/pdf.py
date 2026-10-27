@@ -27,9 +27,9 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Ellipse, FancyBboxPatch, Rectangle
 from matplotlib.ticker import FuncFormatter
 
-from netribeat.sessions.engine import IST
-from netribeat.sessions.models import Recording
-from netribeat.sessions.processing import athlete_name
+from netribeat.hex_decoder.decode_hex import IST
+from netribeat.hex_decoder.reader import athlete_name
+from netribeat.recordings.models import Recording
 
 # Brand colours (frontend tokens.css, light theme)
 INK = "#141414"

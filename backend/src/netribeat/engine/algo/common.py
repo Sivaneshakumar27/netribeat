@@ -1,5 +1,6 @@
-"""Helpers shared by the metric files. Ported from lib-netrin."""
+"""Helpers shared by the metric files. Ported from lib-netrin (plus `rounded` for HRV)."""
 
+import math
 import numpy as np
 import pandas as pd
 
@@ -37,3 +38,11 @@ def durations_s(timestamps):
     steps = (t.shift(-1) - t).dt.total_seconds().to_numpy(copy=True)
     steps[-1] = np.median(steps[:-1])
     return steps
+
+
+def rounded(v, nd=3):
+    """Round, or None for missing / NaN / infinite values (HRV results)."""
+    if v is None:
+        return None
+    v = float(v)
+    return round(v, nd) if math.isfinite(v) else None

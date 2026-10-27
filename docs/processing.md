@@ -1,7 +1,7 @@
 # Processing & algorithms
 
 How a Synapse hex file becomes heart rate, zones, training load, movement load and HRV.
-Code: `backend/src/netribeat/sessions/`.
+Code: `backend/src/netribeat/` — `hex_decoder/`, `rr_interval/`, `preprocessing/`, `engine/algo/`, `metrics/`.
 
 [← Back to README](../README.md)
 
@@ -16,18 +16,23 @@ flowchart TD
     S --> HR[heart_rate<br/>3 s smoothed HR · min/avg/max]
     S --> TL[training_load<br/>zones · time in zone · TRIMP]
     S --> ML[movement_load<br/>RMS series · load · intensity]
-    S --> HRV[hrv<br/>time · frequency · nonlinear]
-    HR & TL & ML & HRV --> P[processing.py<br/>shape metrics + signals]
+    S --> RR[rr_interval + preprocessing<br/>beats · artefacts · detrending]
+    RR --> HRV[hrv_td_fd_nl<br/>time · frequency · nonlinear]
+    HR & TL & ML & HRV --> P[metrics/session_metrics.py<br/>shape metrics + signals]
     P --> DB[(recordings table)]
     DB --> UI[Session page] & R[PDF / CSV / JSON]
 ```
 
 | Stage | File | Origin |
 |---|---|---|
-| Decode | `engine/decode_hex.py` | Reference code (SES-4), **unchanged** |
-| Heart rate, zones, TRIMP, movement | `engine/derived_metrics/*`, `engine/analyse.py` | Reference code (SES-7), **unchanged** |
-| HRV | `hrv/advanced.py`, `hrv/spectral.py`, `hrv/artefacts.py` | Kubios-compatible definitions |
-| Glue | `processing.py`, `service.py` | Chooses inputs, renames fields, stores results |
+| Decode | `hex_decoder/decode_hex.py`, `hex_decoder/reader.py` | Reference code (SES-4), **unchanged** |
+| RR intervals | `rr_interval/rr_intervals.py` | Beat times and RR from the decoder |
+| Artefacts, detrending | `preprocessing/artefact_correction.py`, `preprocessing/detrending.py` | Spec rule + Kubios-compatible |
+| Heart rate, min/avg/max | `engine/algo/hr/`, `engine/algo/max_min_avg_hr/` | Reference code (SES-7), function code unchanged |
+| Zones, TRIMP, movement | `engine/algo/training_load/`, `engine/algo/movement_load/` | Reference code (SES-7), function code unchanged |
+| HRV | `engine/algo/hrv_td_fd_nl/{time_domain,frequency_domain,nonlinear}.py` | Kubios-compatible definitions |
+| Respiration | `engine/algo/respiration_rate/respiration_rate.py` | HF peak × 60 |
+| Outputs | `metrics/derived_metrics.py`, `metrics/hrv_metrics.py`, `metrics/session_metrics.py` | Chooses inputs, names fields |
 
 Analysis runs inside the upload request; a 30-minute file takes about a second.
 
@@ -53,7 +58,7 @@ accelerometer RMS and step counts.
 Each sample `R M R R M M` packs two 12-bit values: **RR** in ms (0 = no beat in that slot) and
 **RMS**. `FFF` (4095) = no value.
 
-## 2 · Decoding — `decode_hex.py`
+## 2 · Decoding — `hex_decoder/decode_hex.py`
 
 1. **Clean** — drop invalid lines; of two neighbouring identifier packets of the same type keep the
    second; after a mid-file restart drop what follows if ≤ 16 packets; drop duplicates; drop
@@ -76,7 +81,7 @@ Each sample `R M R R M M` packs two 12-bit values: **RR** in ms (0 = no beat in 
 | `rms` | 250 ms slot | accelerometer RMS |
 | `steps` | 7.5 s packet | steps |
 
-## 3 · Heart rate — `derived_metrics/heart_rate.py`
+## 3 · Heart rate — `engine/algo/hr/`, `engine/algo/max_min_avg_hr/`
 
 ```
 HR per beat → capped-step smoothing → median per 3 s → exponential smoothing (decay 0.7)
@@ -94,7 +99,7 @@ HR per beat → capped-step smoothing → median per 3 s → exponential smoothi
 | Min HR | 1st percentile |
 | Avg HR | Mean of the plausible values |
 
-## 4 · Zones & training load — `derived_metrics/training_load.py`
+## 4 · Zones & training load — `engine/algo/training_load/`
 
 **Inputs, per upload.** One account tests many athletes, so the **account profile is never used**:
 each value comes from the upload form (the name also from the file name), otherwise it is "—".
@@ -119,7 +124,7 @@ TRIMP = Σ minutes × r × 0.64 × e^(k·r)        k = 1.92 men, 1.67 women
 
 HR below resting adds nothing. **Training intensity** = TRIMP per minute of recording.
 
-## 5 · Movement load — `derived_metrics/movement_load.py`
+## 5 · Movement load — `engine/algo/movement_load/`
 
 ```
 RMS per 250 ms → exponential smoothing (decay 0.9) → mean per 3 s → gaps filled from neighbours
@@ -129,7 +134,7 @@ movement intensity = load per hour of recording
 
 **Steps** = sum of the per-packet step counts.
 
-## 6 · HRV — `hrv/`
+## 6 · HRV — `preprocessing/` + `engine/algo/hrv_td_fd_nl/`
 
 HRV uses the beats from the decoder (`rrt`), with each RR placed at the end of its interval.
 
@@ -137,10 +142,10 @@ HRV uses the beats from the decoder (`rrt`), with each RR placed at the end of i
 
 | Where | Rule |
 |---|---|
-| Overview and spec tables (`artefacts.py`) | Beat > 20 % from the median of its 11-beat window, or outside 250–2500 ms → replaced by that median |
-| Kubios-style analysis (`advanced.py`) | Threshold levels very low / **low** (default) / medium / strong / very strong = 0.45 / 0.35 / 0.25 / 0.15 / 0.05 s at 60 bpm, scaled by mean RR; replaced by cubic-spline interpolation |
+| Overview and spec tables (`correct_artefacts`) | Beat > 20 % from the median of its 11-beat window, or outside 250–2500 ms → replaced by that median |
+| Kubios-style analysis (`threshold_correction`) | Threshold levels very low / **low** (default) / medium / strong / very strong = 0.45 / 0.35 / 0.25 / 0.15 / 0.05 s at 60 bpm, scaled by mean RR; replaced by cubic-spline interpolation |
 
-### Spec HRV (session page overview) — `spectral.py`
+### Spec HRV (session page overview) — `basic_time_domain`, `lomb_scargle_frequency_domain`
 
 First 5 minutes of the corrected series:
 
@@ -154,7 +159,7 @@ First 5 minutes of the corrected series:
 | Poincaré | SD1, SD2 |
 | Respiratory rate | HF peak (Hz) × 60; per minute from 2-min windows stepped 1 min |
 
-### Kubios-style HRV — `advanced.py`
+### Kubios-style HRV — `metrics/hrv_metrics.py`
 
 Default sample: first 5 min (changeable on the *HRV analysis* tab). The sample is detrended with
 **smoothness priors** (λ = 500).
@@ -174,7 +179,7 @@ components are reported.
 
 ## 7 · What gets stored
 
-`processing.py` writes two JSON documents per session (`recordings.metrics`, `recordings.signals`)
+`metrics/session_metrics.py` builds two JSON documents per session (`recordings.metrics`, `recordings.signals`)
 plus summary columns for lists.
 
 | `metrics` key | Content |

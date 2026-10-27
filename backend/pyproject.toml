@@ -43,8 +43,16 @@ packages = ["src/netribeat"]
 line-length = 100
 target-version = "py312"
 src = ["src"]
-# The engine is copied unchanged from the SES-4 / SES-7 reference engine: never reformat it.
-extend-exclude = ["src/netribeat/sessions/engine/decode_hex.py", "src/netribeat/sessions/engine/analyse.py", "src/netribeat/sessions/engine/derived_metrics"]
+# Reference engine code (SES-4 / SES-7), kept as written: never reformat it.
+extend-exclude = [
+    "src/netribeat/hex_decoder/decode_hex.py",
+    "src/netribeat/engine/algo/common.py",
+    "src/netribeat/engine/algo/hr",
+    "src/netribeat/engine/algo/max_min_avg_hr",
+    "src/netribeat/engine/algo/training_load",
+    "src/netribeat/engine/algo/movement_load",
+    "src/netribeat/metrics/derived_metrics.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "SIM", "RUF", "N"]
@@ -57,9 +65,27 @@ plugins = ["pydantic.mypy"]
 strict = true
 mypy_path = "src"
 packages = ["netribeat"]
-exclude = ['src/netribeat/sessions/engine/(decode_hex|analyse)\.py', 'src/netribeat/sessions/engine/derived_metrics/']
+exclude = [
+    'src/netribeat/hex_decoder/decode_hex\.py',
+    'src/netribeat/engine/algo/common\.py',
+    'src/netribeat/engine/algo/hr',
+    'src/netribeat/engine/algo/max_min_avg_hr',
+    'src/netribeat/engine/algo/training_load',
+    'src/netribeat/engine/algo/movement_load',
+    'src/netribeat/metrics/derived_metrics\.py',
+]
 
 [[tool.mypy.overrides]]
-module = ["analyse", "decode_hex", "derived_metrics.*", "pandas", "pandas.*"]
+module = [
+    "netribeat.hex_decoder.decode_hex",
+    "netribeat.engine.algo.common",
+    "netribeat.engine.algo.hr.*",
+    "netribeat.engine.algo.max_min_avg_hr.*",
+    "netribeat.engine.algo.training_load.*",
+    "netribeat.engine.algo.movement_load.*",
+    "netribeat.metrics.derived_metrics",
+    "pandas",
+    "pandas.*",
+]
 ignore_missing_imports = true
 follow_imports = "skip"

@@ -28,8 +28,8 @@ and a two-page PDF report.
 ```mermaid
 flowchart LR
     A[Hex file] --> B[decode_hex<br/>RR · HR · RMS · steps]
-    B --> C[derived_metrics<br/>HR · zones · TRIMP · movement]
-    B --> D[hrv<br/>Kubios-style HRV]
+    B --> C[engine/algo<br/>HR · zones · TRIMP · movement]
+    B --> D[hrv_td_fd_nl<br/>Kubios-style HRV]
     C --> E[(PostgreSQL)]
     D --> E
     E --> F[Web app]

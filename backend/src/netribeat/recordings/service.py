@@ -22,16 +22,11 @@ from netribeat.auth.models import User
 from netribeat.auth.service import RequestContext
 from netribeat.clock import Clock
 from netribeat.core.errors import Forbidden, NotFound, ValidationFailed
-from netribeat.sessions import engine
-from netribeat.sessions.models import Recording
-from netribeat.sessions.processing import (
-    Inputs,
-    ProcessingError,
-    analyse,
-    athlete_name,
-    decode,
-)
-from netribeat.sessions.processing import reanalyse_advanced as reanalyse_advanced_hrv
+from netribeat.hex_decoder.decode_hex import start_time_from_filename
+from netribeat.hex_decoder.reader import ProcessingError, athlete_name, decode
+from netribeat.metrics.session_metrics import Inputs, analyse
+from netribeat.metrics.session_metrics import reanalyse_advanced as reanalyse_advanced_hrv
+from netribeat.recordings.models import Recording
 
 MAX_FILES = 10
 MAX_FILE_BYTES = 20 * 1024 * 1024
@@ -230,7 +225,7 @@ async def upload(
 
     created: list[Recording] = []
     for name, data, sessions in decoded:
-        from_file = engine.start_time_from_filename(name) is not None
+        from_file = start_time_from_filename(name) is not None
         for part, df in enumerate(sessions):
             rec = Recording(
                 user_id=owner.id,
