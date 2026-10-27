@@ -727,6 +727,23 @@ async def delete_recording(
     await db.commit()
 
 
+async def upgrade_hrv(db: AsyncSession, rec: Recording) -> Recording:
+    """Sessions analysed before the corrected RR series existed get it on first view: the
+    advanced HRV is run again with its saved options (same results, one extra series)."""
+    tach = ((rec.signals or {}).get("advanced") or {}).get("tachogram") or {}
+    if not tach or "rrCorrectedMs" in tach:
+        return rec
+    options = ((rec.metrics or {}).get("advanced") or {}).get("options") or {}
+    try:
+        metrics, series = await asyncio.to_thread(reanalyse_advanced, rec.signals or {}, options)
+    except (TypeError, ValueError):
+        return rec  # keep the stored result; the chart then shows raw RR
+    rec.metrics = {**(rec.metrics or {}), "advanced": metrics}
+    rec.signals = {**(rec.signals or {}), "advanced": series}
+    await db.commit()
+    return rec
+
+
 async def reanalyse_hrv(
     db: AsyncSession,
     clock: Clock,
@@ -913,7 +930,7 @@ async def get_analysis(session_id: uuid.UUID, user: CurrentUser, db: DbDep) -> A
 
 @router.get("/{session_id}/signals", response_model=SignalsOut, responses=E, summary="Series")
 async def get_signals(session_id: uuid.UUID, user: CurrentUser, db: DbDep) -> SignalsOut:
-    rec = await _ready(db, user, session_id)
+    rec = await upgrade_hrv(db, await _ready(db, user, session_id))
     return SignalsOut(session_id=rec.id, signals=rec.signals or {})
 
 
