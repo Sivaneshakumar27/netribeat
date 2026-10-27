@@ -10,7 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from netribeat.metrics.derived_metrics import item
+from netribeat.engine.derived_metrics import item
 
 F = npt.NDArray[np.float64]
 

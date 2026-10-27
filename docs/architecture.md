@@ -101,14 +101,14 @@ engine/algo/
   hrv_td_fd_nl/time_domain.py        every time-domain statistic (spec + Kubios + over time)
   hrv_td_fd_nl/frequency_domain.py   every spectrum: Lomb–Scargle, Welch FFT, AR; band powers
   hrv_td_fd_nl/nonlinear.py          Poincaré, ApEn, SampEn, DFA, recurrence
+  hrv_td_fd_nl/hrv_analysis.py       Kubios-style HRV run: sample, correction, TD/FD/NL, ANS
   respiration_rate/respiration_rate.py  breaths per minute from the HF peak
-metrics/           derived_metrics.py  HR + training load + movement load for a session (reference)
-                   hrv_metrics.py      Kubios-style HRV report: sample, correction, TD/FD/NL, ANS
-                   session_metrics.py  the full output stored per session (metrics + signals)
-sessions.py        the /api/v1/sessions API in one file: table, schemas, rules, routes
+engine/derived_metrics.py            HR + training load + movement load for a session (reference)
+sessions.py        one file: analysis of a session (full metrics + signals), table, schemas,
+                   rules and the /api/v1/sessions routes
 ```
 
-Flow: `hex_decoder → rr_interval → preprocessing → engine/algo → metrics → sessions.py (database + API)`.
+Flow: `hex_decoder → rr_interval → preprocessing → engine → sessions.py (analysis output, database, API)`.
 The reference engine code (decoder, heart rate, zones, training and movement load) keeps its
 original function code; only its location and imports changed.
 

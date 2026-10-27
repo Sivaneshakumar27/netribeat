@@ -12,7 +12,7 @@ import numpy.typing as npt
 from netribeat.engine.algo.common import rounded
 
 if TYPE_CHECKING:
-    from netribeat.metrics.hrv_metrics import AdvancedOptions
+    from netribeat.engine.algo.hrv_td_fd_nl.hrv_analysis import AdvancedOptions
 
 F = npt.NDArray[np.float64]
 

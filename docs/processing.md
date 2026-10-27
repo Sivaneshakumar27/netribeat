@@ -1,7 +1,7 @@
 # Processing & algorithms
 
 How a Synapse hex file becomes heart rate, zones, training load, movement load and HRV.
-Code: `backend/src/netribeat/` — `hex_decoder/`, `rr_interval/`, `preprocessing/`, `engine/algo/`, `metrics/`.
+Code: `backend/src/netribeat/` — `hex_decoder/`, `rr_interval/`, `preprocessing/`, `engine/`, `sessions.py`.
 
 [← Back to README](../README.md)
 
@@ -18,7 +18,7 @@ flowchart TD
     S --> ML[movement_load<br/>RMS series · load · intensity]
     S --> RR[rr_interval + preprocessing<br/>beats · artefacts · detrending]
     RR --> HRV[hrv_td_fd_nl<br/>time · frequency · nonlinear]
-    HR & TL & ML & HRV --> P[metrics/session_metrics.py<br/>shape metrics + signals]
+    HR & TL & ML & HRV --> P[sessions.py<br/>shape metrics + signals]
     P --> DB[(recordings table)]
     DB --> UI[Session page] & R[PDF / CSV / JSON]
 ```
@@ -32,7 +32,7 @@ flowchart TD
 | Zones, TRIMP, movement | `engine/algo/training_load/`, `engine/algo/movement_load/` | Reference code (SES-7), function code unchanged |
 | HRV | `engine/algo/hrv_td_fd_nl/{time_domain,frequency_domain,nonlinear}.py` | Kubios-compatible definitions |
 | Respiration | `engine/algo/respiration_rate/respiration_rate.py` | HF peak × 60 |
-| Outputs | `metrics/derived_metrics.py`, `metrics/hrv_metrics.py`, `metrics/session_metrics.py` | Chooses inputs, names fields |
+| Outputs | `engine/derived_metrics.py`, `engine/algo/hrv_td_fd_nl/hrv_analysis.py`, `sessions.py` | Chooses inputs, names fields |
 
 Analysis runs inside the upload request; a 30-minute file takes about a second.
 
@@ -159,7 +159,7 @@ First 5 minutes of the corrected series:
 | Poincaré | SD1, SD2 |
 | Respiratory rate | HF peak (Hz) × 60; per minute from 2-min windows stepped 1 min |
 
-### Kubios-style HRV — `metrics/hrv_metrics.py`
+### Kubios-style HRV — `engine/algo/hrv_td_fd_nl/hrv_analysis.py`
 
 Default sample: first 5 min (changeable on the *HRV analysis* tab). The sample is detrended with
 **smoothness priors** (λ = 500).
@@ -179,7 +179,7 @@ components are reported.
 
 ## 7 · What gets stored
 
-`metrics/session_metrics.py` builds two JSON documents per session (`recordings.metrics`, `recordings.signals`)
+`sessions.py` (analysis section) builds two JSON documents per session (`recordings.metrics`, `recordings.signals`)
 plus summary columns for lists.
 
 | `metrics` key | Content |

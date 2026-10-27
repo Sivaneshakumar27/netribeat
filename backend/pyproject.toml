@@ -51,7 +51,7 @@ extend-exclude = [
     "src/netribeat/engine/algo/max_min_avg_hr",
     "src/netribeat/engine/algo/training_load",
     "src/netribeat/engine/algo/movement_load",
-    "src/netribeat/metrics/derived_metrics.py",
+    "src/netribeat/engine/derived_metrics.py",
 ]
 
 [tool.ruff.lint]
@@ -72,7 +72,7 @@ exclude = [
     'src/netribeat/engine/algo/max_min_avg_hr',
     'src/netribeat/engine/algo/training_load',
     'src/netribeat/engine/algo/movement_load',
-    'src/netribeat/metrics/derived_metrics\.py',
+    'src/netribeat/engine/derived_metrics.py',
 ]
 
 [[tool.mypy.overrides]]
@@ -83,7 +83,7 @@ module = [
     "netribeat.engine.algo.max_min_avg_hr.*",
     "netribeat.engine.algo.training_load.*",
     "netribeat.engine.algo.movement_load.*",
-    "netribeat.metrics.derived_metrics",
+    "netribeat.engine.derived_metrics",
     "pandas",
     "pandas.*",
 ]
