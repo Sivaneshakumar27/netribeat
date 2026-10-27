@@ -36,6 +36,9 @@ from netribeat.db import init_db, make_engine, make_sessionmaker
 from netribeat.email.service import EmailSender, build_email_sender
 from netribeat.email.validation import INVALID_EMAIL_MESSAGE
 from netribeat.health.router import router as health_router
+from netribeat.sessions.router import hrmax_router
+from netribeat.sessions.router import router as sessions_router
+from netribeat.sessions.service import MAX_FILE_BYTES, MAX_FILES
 
 log = logging.getLogger(__name__)
 
@@ -160,8 +163,9 @@ def create_app(
         title="NetriBeat API",
         version="0.2.0",
         description=(
-            "Backend for NetriBeat: registration with email verification, login "
-            "(user and admin), password reset, profile and admin user management."
+            "Backend for NetriBeat: accounts (registration with email verification, login, "
+            "password reset, admin user management) and Synapse hex-file sessions (decoding, "
+            "heart rate, zones, training and movement load, PDF/CSV/JSON reports)."
         ),
         lifespan=lifespan,
         docs_url="/api/docs" if settings.docs_enabled else None,
@@ -181,7 +185,11 @@ def create_app(
     install_exception_handlers(app)
 
     # Order: the last added runs first (outermost).
-    app.add_middleware(BodyLimitMiddleware, max_bytes=settings.max_json_body_bytes)
+    app.add_middleware(
+        BodyLimitMiddleware,
+        max_bytes=settings.max_json_body_bytes,
+        overrides={f"{API_PREFIX}/sessions": MAX_FILES * MAX_FILE_BYTES + 1024 * 1024},
+    )
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production)
     if settings.cors_origins:
         app.add_middleware(
@@ -194,7 +202,14 @@ def create_app(
         )
     app.add_middleware(AccessLogMiddleware)
 
-    for router in (health_router, auth_router, users_router, admin_router):
+    for router in (
+        health_router,
+        auth_router,
+        users_router,
+        admin_router,
+        sessions_router,
+        hrmax_router,
+    ):
         app.include_router(router, prefix=API_PREFIX)
     return app
 

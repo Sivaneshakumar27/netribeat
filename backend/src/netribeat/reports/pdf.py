@@ -1,4 +1,4 @@
-"""PDF report from stored results (ReportLab). No formula is recomputed here."""
+"""PDF session report from stored results (ReportLab). No formula is recomputed here."""
 
 from __future__ import annotations
 
@@ -13,8 +13,6 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    Image,
-    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -22,12 +20,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from netribeat.reports.exports import provenance
-
-# Reports take any objects with the expected attributes (the analysis models plug in later).
-type Session = Any
-type AnalysisResult = Any
-type SessionFile = Any
+from netribeat.sessions.models import Recording
 
 ACCENT = colors.HexColor("#b4460a")
 MUTED = colors.HexColor("#5c5852")
@@ -126,16 +119,9 @@ def _line_chart(
     return d
 
 
-def render(
-    session: Session,
-    result: AnalysisResult,
-    files: list[SessionFile],
-    owner_label: str,
-    generated_at: datetime,
-    subject: dict[str, Any] | None = None,
-) -> bytes:
-    """Page 1: the HRV results sheet (Kubios layout). Following pages: NetriBeat results."""
-    m, sig = result.metrics, result.signals
+def render(rec: Recording, owner_label: str, generated_at: datetime) -> bytes:
+    """One or two pages: session details, heart rate, zones, training and movement load."""
+    m, sig = rec.metrics or {}, rec.signals or {}
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle(
         "h1", parent=styles["Heading1"], fontName="Helvetica-Bold", fontSize=16, spaceAfter=2
@@ -152,249 +138,126 @@ def render(
     body = ParagraphStyle(
         "b", parent=styles["BodyText"], fontName="Helvetica", fontSize=8.5, leading=11
     )
-    warn = ParagraphStyle("w", parent=body, textColor=colors.HexColor("#a3271b"))
-    out: list[Any] = []
-    if m.get("advanced"):
-        from netribeat.reports.hrv_page import render_png
-
-        png = render_png(
-            title_sample="sample 1",
-            subject=subject or {},
-            recorded_at=session.recorded_at,
-            file_name=session.file_name,
-            adv=m["advanced"],
-            series=sig.get("advanced", {}),
-            generated_at=generated_at,
-        )
-        page_h = A4[1] - 24 * mm  # fits the frame (margins + 6 pt frame padding)
-        page_w = page_h * 8.27 / 11.69  # keep the A4 aspect ratio of the rendered sheet
-        out += [Image(io.BytesIO(png), width=page_w, height=page_h), PageBreak()]
-    out += [
+    hr, hr_max, inputs = m.get("hr") or {}, m.get("hrMax") or {}, m.get("inputs") or {}
+    out: list[Any] = [
         Paragraph("NetriBeat session report", h1),
         Paragraph(
             _t(
-                f"{session.type.value.title()} session · {owner_label} · recorded "
-                f"{session.recorded_at:%Y-%m-%d %H:%M} UTC"
+                f"{rec.type.title()} session · {owner_label} · recorded "
+                f"{rec.recorded_at:%Y-%m-%d %H:%M} UTC"
             ),
             body,
         ),
         Spacer(1, 4),
+        _table(
+            [
+                ["Duration", "Age", "Gender", "Resting HR", "Max HR used", "Steps"],
+                [
+                    _n((rec.duration_s or 0) / 60, 1, "min"),
+                    _t(inputs.get("age") if inputs.get("age") is not None else "n/a"),
+                    _t(inputs.get("gender") or "n/a"),
+                    _n(inputs.get("restingHr"), 0, "bpm"),
+                    _t(
+                        f"{hr_max['value']} bpm ({hr_max.get('label', '')})"
+                        if hr_max.get("value")
+                        else "n/a"
+                    ),
+                    _t(m.get("steps")),
+                ],
+            ]
+        ),
+        Paragraph("Heart rate", h2),
+        _table(
+            [
+                ["Average", "Minimum", "Maximum"],
+                [
+                    _n(hr.get("avg"), 0, "bpm"),
+                    _n(hr.get("min"), 0, "bpm"),
+                    _n(hr.get("max"), 0, "bpm"),
+                ],
+            ]
+        ),
+        Spacer(1, 4),
+        _line_chart(
+            (sig.get("hr") or {}).get("tS", []),
+            (sig.get("hr") or {}).get("bpm", []),
+            "Heart rate (3 s, smoothed) over time (s)",
+            "bpm",
+        ),
+        Paragraph("Heart-rate zones", h2),
     ]
-    rel = m.get("reliability", {})
-    coverage = (rel.get("beatCoverage") or 0) * 100
-    out.append(
-        _table(
-            [
-                [
-                    "Session id",
-                    "Quality",
-                    "Beat detection",
-                    "Duration",
-                    "Age at recording",
-                    "Device",
-                ],
-                [
-                    str(session.id)[:8],
-                    _t(m.get("quality")),
-                    "reliable"
-                    if rel.get("reliable")
-                    else f"UNRELIABLE ({coverage:.0f} % coverage)",
-                    _n(session.duration_s, 0, "s"),
-                    _t(session.age or "unknown"),
-                    _t(session.device.value),
-                ],
-            ]
-        )
-    )
-    if m.get("warnings"):
-        out.append(Paragraph("Warnings", h2))
-        out.extend(Paragraph("• " + _t(w_), warn) for w_ in m["warnings"])
-
-    out.append(Paragraph("Heart rate and zones", h2))
-    hr, hm = m.get("hr", {}), m.get("hrMax") or {}
-    out.append(
-        _table(
-            [
-                [
-                    "Min HR",
-                    "Avg HR",
-                    "Max HR",
-                    "HRmax used",
-                    "Source",
-                    "Training load (Edwards TRIMP)",
-                ],
-                [
-                    _n(hr.get("min"), 1, "bpm"),
-                    _n(hr.get("avg"), 1, "bpm"),
-                    _n(hr.get("max"), 1, "bpm"),
-                    _n(hm.get("value"), 0, "bpm"),
-                    _t(hm.get("label") or m.get("zonesUnavailableReason")),
-                    _n(m.get("trainingLoad"), 1, "AU"),
-                ],
-            ]
-        )
-    )
-    tz = m.get("timeInZonesS")
-    if tz:
-        out.append(Spacer(1, 3))
-        zone_rows = [["Zone", "Time (min)"]] + [
-            [lbl, _n(tz.get(k, 0) / 60, 1)] for k, lbl in ZONE_LABELS
-        ]
-        out.append(_table(zone_rows, [60 * mm, 30 * mm]))
-    hrs = sig.get("hr", {})
-    out.append(_line_chart(hrs.get("tS", []), hrs.get("bpm", []), "Heart rate over time", "bpm"))
-
-    out.append(Paragraph("Beats and artefact correction", h2))
-    b = m.get("beats", {})
-    out.append(
-        _table(
-            [
-                [
-                    "R-peaks detected",
-                    "RR intervals",
-                    "Artefacts corrected",
-                    "Artefact %",
-                    "Beat coverage",
-                ],
-                [
-                    _t(b.get("detected")),
-                    _t(b.get("rrIntervals")),
-                    _t(b.get("artefacts")),
-                    _n(b.get("artefactPct"), 2, "%"),
-                    _n(coverage, 0, "%"),
-                ],
-            ]
-        )
-    )
-    strip = sig.get("ecgStrip")
-    if strip and strip.get("signal"):
-        fs = strip["fs"]
-        xs = [i / fs for i in range(len(strip["signal"]))]
-        out.append(
-            _line_chart(
-                xs,
-                strip["signal"],
-                "ECG, first 10 s, R-peaks marked",
-                strip.get("unit", ""),
-                [p / fs for p in strip.get("rPeaks", [])],
-            )
-        )
-
-    out.append(Paragraph("HRV time domain (first 5 minutes, corrected RR)", h2))
-    td = m.get("timeDomain")
-    if td:
+    zones = m.get("timeInZonesS")
+    if zones:
+        total = sum(zones.values()) or 1
         out.append(
             _table(
-                [
-                    ["Mean RR", "Mean HR", "SDNN", "RMSSD", "pNNI20", "pNNI50", "Beats"],
+                [["Zone", "Time", "Share"]]
+                + [
                     [
-                        _n(td["meanRr"], 1, "ms"),
-                        _n(td["meanHr"], 1, "bpm"),
-                        _n(td["sdnn"], 1, "ms"),
-                        _n(td["rmssd"], 1, "ms"),
-                        _n(td["pnni20"], 1, "%"),
-                        _n(td["pnni50"], 1, "%"),
-                        _t(td["beats"]),
-                    ],
+                        label,
+                        f"{int(zones.get(k, 0) // 60)}:{int(zones.get(k, 0) % 60):02d}",
+                        f"{zones.get(k, 0) / total * 100:.0f} %",
+                    ]
+                    for k, label in ZONE_LABELS
                 ]
             )
         )
     else:
-        out.append(Paragraph(_t(m.get("unavailable", {}).get("timeDomain", "Unavailable")), body))
+        out.append(Paragraph(_t(m.get("zonesUnavailableReason") or "Not available"), body))
 
-    out.append(Paragraph("HRV frequency domain (Lomb-Scargle)", h2))
-    fd = m.get("frequencyDomain")
-    if fd:
-        rows = [["Band", "Range (Hz)", "Peak (Hz)", "Power (ms^2)", "%", "n.u."]]
-        for k in ("vlf", "lf", "hf"):
-            bd = fd["bands"][k]
-            rows.append(
-                [
-                    k.upper(),
-                    f"{bd['rangeHz'][0]}-{bd['rangeHz'][1]}",
-                    _n(bd["peakHz"], 3),
-                    _n(bd["power"], 1),
-                    _n(bd["powerPct"], 1),
-                    _n(bd["powerNu"], 1),
-                ]
-            )
-        rows.append(["Total", "", "", _n(fd["totalPower"], 1), "", ""])
-        out.append(_table(rows))
-        out.append(Paragraph(_t(f"LF/HF ratio: {_n(fd.get('lfHf'), 3)}"), body))
-        out.append(_line_chart(fd["freqs"], fd["power"], "Power spectral density", "ms^2/Hz"))
-    else:
-        out.append(
-            Paragraph(_t(m.get("unavailable", {}).get("frequencyDomain", "Unavailable")), body)
-        )
-
-    out.append(Paragraph("Poincare and respiration", h2))
-    pc, resp = m.get("poincare") or {}, m.get("respiratoryRate") or {}
-    out.append(
+    out += [
+        Paragraph("Training and movement load", h2),
         _table(
             [
-                ["SD1", "SD2", "SD1/SD2", "Respiratory rate", "HF peak", "Movement load"],
+                ["Training load", "Training intensity", "Movement load", "Movement intensity"],
                 [
-                    _n(pc.get("sd1"), 1, "ms"),
-                    _n(pc.get("sd2"), 1, "ms"),
-                    _n(pc.get("sd1Sd2"), 3),
-                    _n(resp.get("value"), 1, "br/min"),
-                    _n(resp.get("hfPeakHz"), 3, "Hz"),
-                    "n/a (no accelerometer data)",
+                    _n(m.get("trainingLoad"), 1, "AU"),
+                    _n(m.get("trainingIntensity"), 3, "AU/min"),
+                    _n(m.get("movementLoad"), 3, "RMS-h"),
+                    _n(m.get("movementIntensity"), 3),
                 ],
             ]
-        )
-    )
-
-    out.append(Paragraph("Unavailable metrics", h2))
-    unavail = m.get("unavailable", {})
-    out.append(Paragraph(_t("; ".join(f"{k}: {v}" for k, v in unavail.items()) or "None"), body))
-
-    prov = provenance(session, result, files, generated_at)
-    out.append(Paragraph("Method and provenance", h2))
-    out.append(
+        ),
+    ]
+    if m.get("trainingLoad") is None and m.get("zonesUnavailableReason"):
+        out.append(Paragraph(_t(m["zonesUnavailableReason"]), body))
+    out += [
+        Spacer(1, 4),
+        _line_chart(
+            (sig.get("rms") or {}).get("tS", []),
+            (sig.get("rms") or {}).get("value", []),
+            "Movement (accelerometer RMS, 3 s) over time (s)",
+            "RMS",
+        ),
+        Paragraph("Method", h2),
         Paragraph(
             _t(
-                "Metrics follow design-spec §6 (Pan-Tompkins-style R-peaks; 11-beat median "
-                "artefact rule; 5-minute HRV window; Lomb-Scargle PSD 0.002-0.5 Hz scaled to RR "
-                "variance; Edwards TRIMP). These are research estimates, not a validated "
-                "clinical result."
+                "Decoded from the Synapse sensor hex file (RR, accelerometer RMS and steps). "
+                "HR series: 3 s buckets with exponential smoothing; zones as % of max HR; "
+                "training load: Banister TRIMP; movement load: RMS-hours (svc-sessions method). "
+                "Research estimates, not a validated clinical result."
             ),
             body,
-        )
-    )
-    out.extend(
-        Paragraph(_t(f"Provisional rule {k}: {v}"), body)
-        for k, v in prov["provisionalRules"].items()
-    )
-    out.extend(
+        ),
         Paragraph(
             _t(
-                f"Source file: {f['name']} ({f['format']}, {f['sizeBytes']} bytes, "
-                f"SHA-256 {f['sha256'][:16]}...)"
+                f"Source file: {rec.file_name} (session {rec.part + 1}, {rec.file_size} bytes) · "
+                f"analysis version {m.get('analysisVersion')} · report generated "
+                f"{generated_at:%Y-%m-%d %H:%M} UTC"
             ),
             body,
-        )
-        for f in prov["sourceFiles"]
-    )
-    out.append(
-        Paragraph(
-            _t(
-                f"Analysis version {prov['analysisVersion']} · analysed "
-                f"{prov['analysedAt']} · report generated {prov['generatedAt']}"
-            ),
-            body,
-        )
-    )
+        ),
+    ]
 
     buf = io.BytesIO()
     SimpleDocTemplate(
         buf,
         pagesize=A4,
-        leftMargin=6 * mm,
-        rightMargin=6 * mm,
-        topMargin=6 * mm,
-        bottomMargin=6 * mm,
-        title="NetriBeat HRV report",
+        leftMargin=12 * mm,
+        rightMargin=12 * mm,
+        topMargin=12 * mm,
+        bottomMargin=12 * mm,
+        title="NetriBeat session report",
         author="NetriBeat",
     ).build(out)
     return buf.getvalue()

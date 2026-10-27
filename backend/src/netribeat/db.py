@@ -52,7 +52,8 @@ END $$;
 
 async def init_db(engine: AsyncEngine) -> None:
     """Create any missing tables at startup (idempotent; existing tables are left alone)."""
-    import netribeat.auth.models  # noqa: F401  (registers every table)
+    import netribeat.auth.models
+    import netribeat.sessions.models  # noqa: F401  (registers every table)
 
     async with engine.begin() as conn:
         await conn.execute(text(_RENAME_SEX_TO_GENDER))

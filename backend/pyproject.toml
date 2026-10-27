@@ -1,7 +1,7 @@
 [project]
 name = "netribeat"
 version = "0.1.0"
-description = "NetriBeat backend — authentication, email and reports"
+description = "NetriBeat backend — accounts, email, hex-file sessions and reports"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.159,<1",
@@ -16,7 +16,9 @@ dependencies = [
     "pyjwt>=2.10,<3",
     "redis>=5.2,<6",
     "reportlab>=4.2,<5",
-    "matplotlib>=3.9,<4",
+    "python-multipart>=0.0.18,<0.1",
+    "numpy>=2.1,<3",
+    "pandas>=2.2,<3",
 ]
 
 [project.scripts]
@@ -40,6 +42,8 @@ packages = ["src/netribeat"]
 line-length = 100
 target-version = "py312"
 src = ["src"]
+# The engine is copied unchanged from references/ (SES-4, SES-7): never reformat it.
+extend-exclude = ["src/netribeat/engine/decode_hex.py", "src/netribeat/engine/analyse.py", "src/netribeat/engine/derived_metrics"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "SIM", "RUF", "N"]
@@ -52,3 +56,9 @@ plugins = ["pydantic.mypy"]
 strict = true
 mypy_path = "src"
 packages = ["netribeat"]
+exclude = ['src/netribeat/engine/(decode_hex|analyse)\.py', 'src/netribeat/engine/derived_metrics/']
+
+[[tool.mypy.overrides]]
+module = ["analyse", "decode_hex", "derived_metrics.*", "pandas", "pandas.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
