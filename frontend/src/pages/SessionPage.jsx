@@ -92,10 +92,14 @@ function EcgBeats({ m, sig }) {
         {ys.length ? (
           <LineChart title="Beat-to-beat series" height={240}
             series={[{ name: mode === 'hr' ? 'Beat HR' : 'RR', unit: mode === 'hr' ? 'bpm' : 'ms', xs: sig.beatTimesS, ys, color: 'var(--band-hf)' }]}
-            markers={[...flagged].slice(0, 400).map((i) => ({ x: sig.beatTimesS[i], y: mode === 'hr' ? beatHr(rr[i]) : rr[i], color: 'var(--zone-5)' }))}
+            markers={[...flagged].slice(0, 400).map((i) => {
+              const cor = sig.rrCorrectedMs[i];
+              const show = (v) => (mode === 'hr' ? `${Math.round(beatHr(v))} bpm` : `${Math.round(v)} ms`);
+              return { x: sig.beatTimesS[i], y: mode === 'hr' ? beatHr(cor) : cor, color: 'var(--zone-5)', title: `Corrected beat: raw ${show(rr[i])} → ${show(cor)}` };
+            })}
             xFormat={mmss} yFormat={(v) => Math.round(v)} xLabel="Time" />
         ) : <Unavailable m={m} k="hr" />}
-        <p className="nb-muted nb-small">Line: corrected series. Red rings: artefacts at their raw value (replaced by the local median).</p>
+        <p className="nb-muted nb-small">Line: corrected series. Red rings: beats corrected as artefacts (hover a ring for its raw value).</p>
       </section>
     </>
   );

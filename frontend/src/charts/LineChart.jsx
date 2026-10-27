@@ -101,7 +101,9 @@ export default function LineChart({
         {markers.map((mk, i) => (
           // eslint-disable-next-line react/no-array-index-key
           <g key={i}>
-            <circle cx={sx(mk.x)} cy={sy(mk.y)} r={mk.r || 3.2} fill={mk.fill || 'none'} stroke={mk.color || 'var(--zone-5)'} strokeWidth="1.5" />
+            <circle cx={sx(mk.x)} cy={sy(mk.y)} r={mk.r || 3.2} fill={mk.fill || 'none'} stroke={mk.color || 'var(--zone-5)'} strokeWidth="1.5">
+              {mk.title ? <title>{mk.title}</title> : null}
+            </circle>
             {mk.label ? <text x={sx(mk.x)} y={sy(mk.y) - 7} textAnchor="middle" className="nb-chart-mark-label">{mk.label}</text> : null}
           </g>
         ))}
