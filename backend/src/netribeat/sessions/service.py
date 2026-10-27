@@ -53,7 +53,7 @@ class UploadForm:
     hr_max_manual: int | None
     notes: str | None
     user_id: uuid.UUID | None  # admins only
-    # Subject details (optional; empty -> the owner's profile value)
+    # Athlete details (optional; never taken from the account profile)
     athlete_name: str | None = None  # empty -> from the file name
     gender: str | None = None
     resting_hr: int | None = None
@@ -145,28 +145,18 @@ async def peak_hr(db: AsyncSession, user_id: uuid.UUID) -> float | None:
     return float(value) if value is not None else None
 
 
-async def _inputs(db: AsyncSession, rec: Recording, owner: User) -> Inputs:
-    """Max HR: upload override > the owner's setting (manual / peak / age formula)."""
-    age = rec.age if rec.age is not None else owner.age
-    method = owner.hr_max_method
-    value: float | None = None
-    used: str | None = None
-    if rec.hr_max_manual:
-        value, used = float(rec.hr_max_manual), "override"
-    elif method is HrMaxMethod.MANUAL and owner.hr_max_manual:
-        value, used = float(owner.hr_max_manual), "manual"
-    elif method is HrMaxMethod.PEAK:
-        value, used = await peak_hr(db, owner.id), "peak"
-    if value is None:
-        used = "age" if age is not None else None
+def _inputs(rec: Recording) -> Inputs:
+    """Athlete details from this upload only (one account tests many athletes, so the account
+    profile is never used): entered values, the name from the file name, otherwise None."""
+    used = "override" if rec.hr_max_manual else "age" if rec.age is not None else None
     return Inputs(
         name=athlete_name(rec.athlete_name, rec.file_name),
-        age=age,
-        gender=rec.gender or (owner.gender.value if owner.gender else None),
-        resting_hr=rec.resting_hr or owner.hr_rest,
-        height_cm=rec.height_cm or owner.height_cm,
-        weight_kg=rec.weight_kg or owner.weight_kg,
-        max_hr=value,
+        age=rec.age,
+        gender=rec.gender,
+        resting_hr=rec.resting_hr,
+        height_cm=rec.height_cm,
+        weight_kg=rec.weight_kg,
+        max_hr=float(rec.hr_max_manual) if rec.hr_max_manual else None,
         max_hr_label=LABELS[used] if used else "",
         max_hr_method=used,
     )
@@ -247,7 +237,7 @@ async def _apply(
     rec.attempts += 1
     rec.processed_at = clock.now()
     try:
-        result = await asyncio.to_thread(analyse, df, await _inputs(db, rec, owner))
+        result = await asyncio.to_thread(analyse, df, _inputs(rec))
     except ValueError as exc:  # the engine's own "can't analyse" errors
         rec.status, rec.error = "failed", str(exc)[:500]
         return
@@ -337,7 +327,6 @@ async def upload(
     if problems:
         raise ValidationFailed("Some files can't be analysed", fields=problems)
 
-    age = form.age if form.age is not None else owner.age
     created: list[Recording] = []
     for name, data, sessions in decoded:
         from_file = engine.start_time_from_filename(name) is not None
@@ -348,8 +337,8 @@ async def upload(
                 type=form.type,
                 device=form.device,
                 notes=form.notes,
-                age=age,
-                age_source="entered" if form.age is not None else "profile" if age else "none",
+                age=form.age,
+                age_source="entered" if form.age is not None else "none",
                 hr_max_manual=form.hr_max_manual,
                 athlete_name=(form.athlete_name or "").strip() or None,
                 gender=form.gender,

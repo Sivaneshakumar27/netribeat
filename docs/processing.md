@@ -96,11 +96,12 @@ HR per beat → capped-step smoothing → median per 3 s → exponential smoothi
 
 ## 4 · Zones & training load — `derived_metrics/training_load.py`
 
-**Inputs, per upload** (empty → the person's profile → shown as "—"):
+**Inputs, per upload.** One account tests many athletes, so the **account profile is never used**:
+each value comes from the upload form (the name also from the file name), otherwise it is "—".
 
 | Input | Used for | Default |
 |---|---|---|
-| Max HR | Zones, TRIMP | Upload override → *Settings* (manual / peak of own sessions) → **210 − 0.65 × age** |
+| Max HR | Zones, TRIMP | *Max HR override* on upload → **210 − 0.65 × age** |
 | Resting HR | TRIMP | 50 bpm |
 | Gender | TRIMP factor | — (training load needs male or female) |
 | Age | Max HR formula | — |
@@ -199,7 +200,6 @@ plus summary columns for lists.
 | Trigger | What re-runs |
 |---|---|
 | *Retry analysis* on a session | Whole pipeline from the stored file |
-| Changing max HR in *Settings* | Whole pipeline for all of that person's sessions |
 | *Apply* on the HRV analysis tab | Kubios-style HRV only, with the chosen options |
 
 ## Limits

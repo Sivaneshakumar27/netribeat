@@ -90,9 +90,9 @@ def _zones_and_load(
     """Engine output, max HR used, time in zones (s) and why zones/load are missing."""
     reason: str | None = None
     if inputs.max_hr is None and inputs.age is None:
-        reason = "Enter age (on upload or in your profile) or set a max HR in Settings"
+        reason = "Enter the athlete's age or max HR on upload"
     elif inputs.gender not in ("male", "female"):
-        reason = "Training load needs gender male or female (on upload or in your profile)"
+        reason = "Training load needs the athlete's gender (male or female) on upload"
     if inputs.max_hr is None and inputs.age is None:
         return {}, None, None, reason
 

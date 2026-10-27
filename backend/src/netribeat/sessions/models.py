@@ -32,10 +32,10 @@ class Recording(Base):
     type: Mapped[str] = mapped_column(String(20))  # training | rest | match | recovery | test
     device: Mapped[str] = mapped_column(String(40))
     notes: Mapped[str | None] = mapped_column(String(500))
-    # Subject details entered on upload (optional; empty -> the owner's profile value)
+    # Athlete details entered on upload (optional; never taken from the account profile)
     athlete_name: Mapped[str | None] = mapped_column(String(100))  # empty -> from the file name
     age: Mapped[int | None]
-    age_source: Mapped[str] = mapped_column(String(10))  # entered | profile | none
+    age_source: Mapped[str] = mapped_column(String(10))  # entered | none
     gender: Mapped[str | None] = mapped_column(String(10))  # male | female | other
     resting_hr: Mapped[int | None]
     height_cm: Mapped[int | None]

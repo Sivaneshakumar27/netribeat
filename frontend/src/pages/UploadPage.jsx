@@ -61,9 +61,9 @@ export default function UploadPage() {
   };
   const err = (k) => serverFields[k] || ((tried || k === 'hrMaxManual') ? local[k] : null);
   const ageNum = Number(form.age);
-  const zonesNote = form.hrMaxManual && !local.hrMaxManual ? `Zones will use ${form.hrMaxManual} bpm (upload override) unless your saved setting says otherwise.`
-    : form.age && !local.age ? `Zones will use ${Math.round(210 - 0.65 * ageNum)} bpm (210 − 0.65 × age) unless your saved setting says otherwise.`
-      : 'Empty fields use your profile; anything missing shows as “—” in the report.';
+  const zonesNote = form.hrMaxManual && !local.hrMaxManual ? `Zones will use ${form.hrMaxManual} bpm.`
+    : form.age && !local.age ? `Zones will use ${Math.round(210 - 0.65 * ageNum)} bpm (210 − 0.65 × age).`
+      : 'These are this athlete’s details (your profile is never used). Zones need age or max HR; training load also needs gender. Anything empty shows as “—”.';
 
   async function submit() {
     setTried(true);
@@ -119,7 +119,7 @@ export default function UploadPage() {
             <Field label="Max HR override (optional)" type="number" inputMode="numeric" value={form.hrMaxManual} onChange={set('hrMaxManual')} error={err('hrMaxManual')} min="100" max="230" />
             <div className="nb-field"><label className="nb-field-label" htmlFor="up-gender">Gender (optional)</label>
               <select id="up-gender" className="nb-input" value={form.gender} onChange={(e) => set('gender')(e.target.value)}>
-                <option value="">From profile</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
+                <option value="">Not set</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option>
               </select>{err('gender') ? <div className="nb-field-error">{err('gender')}</div> : null}</div>
             <Field label="Resting HR, bpm (optional)" type="number" inputMode="numeric" value={form.restingHr} onChange={set('restingHr')} error={err('restingHr')} min="25" max="120" />
             <Field label="Height, cm (optional)" type="number" inputMode="numeric" value={form.heightCm} onChange={set('heightCm')} error={err('heightCm')} min="80" max="250" />

@@ -87,7 +87,7 @@ one site and the sign-in cookie works.
 
 1. **Register** at `/register` → the code appears in the backend window → enter it.
 2. **Upload** a Synapse hex file at *New recording*. Fill in age and gender for zones and
-   training load (or set them once in *Profile*).
+   training load (the account profile is never used — one account tests many athletes).
 3. **Open the session** → tabs for overview, beats, heart rate, HRV and load.
 4. **Download the PDF** under *Report and exports*.
 5. **Admin**: sign in at `/admin/login` with the account from step 4.
@@ -112,4 +112,4 @@ npm test;  npm run build
 | Backend refuses to start: `JWT_SECRET must be…` | Secrets must be ≥ 32 characters and different from each other |
 | No verification code | With `EMAIL_BACKEND=console` it's printed in the **backend** window |
 | Upload says *Not a usable Synapse hex file* | The file isn't a Synapse hex export (one 200-character packet per line) |
-| Training load shows "—" | Enter age, and gender male or female, on the upload form or in *Profile* |
+| Training load shows "—" | Enter the athlete's age, and gender male or female, on the upload form |
