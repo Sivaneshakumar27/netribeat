@@ -58,7 +58,11 @@ ALTER TABLE recordings
   ADD COLUMN IF NOT EXISTS resting_hr INTEGER,
   ADD COLUMN IF NOT EXISTS height_cm INTEGER,
   ADD COLUMN IF NOT EXISTS weight_kg DOUBLE PRECISION,
-  ADD COLUMN IF NOT EXISTS rmssd DOUBLE PRECISION;
+  ADD COLUMN IF NOT EXISTS rmssd DOUBLE PRECISION
+"""
+
+# Fill RMSSD for sessions analysed before the column existed (one statement per execute).
+_BACKFILL_RMSSD = """
 UPDATE recordings SET rmssd = (metrics->'timeDomain'->>'rmssd')::float
   WHERE rmssd IS NULL AND metrics->'timeDomain'->>'rmssd' IS NOT NULL;
 """
@@ -73,6 +77,7 @@ async def init_db(engine: AsyncEngine) -> None:
         await conn.execute(text(_RENAME_SEX_TO_GENDER))
         await conn.run_sync(Base.metadata.create_all)
         await conn.execute(text(_ADD_COLUMNS))
+        await conn.execute(text(_BACKFILL_RMSSD))
 
 
 async def get_db(request: Request) -> AsyncIterator[AsyncSession]:
