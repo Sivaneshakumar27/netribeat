@@ -16,7 +16,7 @@ import numpy as np
 import numpy.typing as npt
 
 if TYPE_CHECKING:
-    from netribeat.engine.algo.hrv_td_fd_nl.hrv_analysis import AdvancedOptions
+    from netribeat.engine.algo.hrv_features.hrv_analysis import AdvancedOptions
 
 F = npt.NDArray[np.float64]
 

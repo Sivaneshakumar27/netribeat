@@ -17,7 +17,7 @@ flowchart TD
     S --> TL[training_load<br/>zones · time in zone · TRIMP]
     S --> ML[movement_load<br/>RMS series · load · intensity]
     S --> RR[preprocessing<br/>beats · artefacts · detrending]
-    RR --> HRV[hrv_td_fd_nl<br/>time · frequency · nonlinear]
+    RR --> HRV[hrv_features<br/>time · frequency · nonlinear]
     HR & TL & ML & HRV --> P[sessions.py<br/>shape metrics + signals]
     P --> DB[(recordings table)]
     DB --> UI[Session page] & R[PDF / CSV / JSON]
@@ -30,9 +30,9 @@ flowchart TD
 | Artefacts, detrending | `preprocessing/artefact_correction.py`, `preprocessing/detrending.py` | Spec rule + Kubios-compatible |
 | Heart rate, min/avg/max | `engine/algo/heart_rate.py`, `engine/algo/hr_statistics.py` | Reference code (SES-7), function code unchanged |
 | Zones, TRIMP, movement | `engine/algo/training_load.py`, `engine/algo/movement_load.py` | Reference code (SES-7), function code unchanged |
-| HRV | `engine/algo/hrv_td_fd_nl/{time_domain,frequency_domain,nonlinear}.py` | Kubios-compatible definitions |
+| HRV | `engine/algo/hrv_features/{time_domain,frequency_domain,nonlinear}.py` | Kubios-compatible definitions |
 | Respiration | `engine/algo/respiration_rate.py` | HF peak × 60 |
-| Outputs | `engine/algo/hrv_td_fd_nl/hrv_analysis.py`, `sessions.py` (`analyse_session`, `analyse`) | Chooses inputs, names fields |
+| Outputs | `engine/algo/hrv_features/hrv_analysis.py`, `sessions.py` (`analyse_session`, `analyse`) | Chooses inputs, names fields |
 
 Analysis runs inside the upload request; a 30-minute file takes about a second.
 
@@ -134,7 +134,7 @@ movement intensity = load per hour of recording
 
 **Steps** = sum of the per-packet step counts.
 
-## 6 · HRV — `preprocessing/` + `engine/algo/hrv_td_fd_nl/`
+## 6 · HRV — `preprocessing/` + `engine/algo/hrv_features/`
 
 HRV uses the beats from the decoder (`rrt`), with each RR placed at the end of its interval.
 
@@ -159,7 +159,7 @@ First 5 minutes of the corrected series:
 | Poincaré | SD1, SD2 |
 | Respiratory rate | HF peak (Hz) × 60; per minute from 2-min windows stepped 1 min |
 
-### Kubios-style HRV — `engine/algo/hrv_td_fd_nl/hrv_analysis.py`
+### Kubios-style HRV — `engine/algo/hrv_features/hrv_analysis.py`
 
 Default sample: first 5 min (changeable on the *HRV analysis* tab). The sample is detrended with
 **smoothness priors** (λ = 500).

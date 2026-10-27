@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from netribeat.engine.algo.hrv_td_fd_nl.frequency_domain import (
+from netribeat.engine.algo.hrv_features.frequency_domain import (
     BANDS_HZ,
     lomb_band,
     lomb_scargle_psd,

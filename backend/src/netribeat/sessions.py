@@ -44,10 +44,10 @@ from netribeat.core.errors import Conflict, Forbidden, NotFound, ValidationFaile
 from netribeat.db import Base
 from netribeat.engine.algo.heart_rate import hr_time_series
 from netribeat.engine.algo.hr_statistics import hr_metrics
-from netribeat.engine.algo.hrv_td_fd_nl.frequency_domain import lomb_scargle_frequency_domain
-from netribeat.engine.algo.hrv_td_fd_nl.hrv_analysis import AdvancedOptions, analyse_advanced
-from netribeat.engine.algo.hrv_td_fd_nl.nonlinear import poincare
-from netribeat.engine.algo.hrv_td_fd_nl.time_domain import basic_time_domain
+from netribeat.engine.algo.hrv_features.frequency_domain import lomb_scargle_frequency_domain
+from netribeat.engine.algo.hrv_features.hrv_analysis import AdvancedOptions, analyse_advanced
+from netribeat.engine.algo.hrv_features.nonlinear import poincare
+from netribeat.engine.algo.hrv_features.time_domain import basic_time_domain
 from netribeat.engine.algo.movement_load import movement_metrics, rms_time_series
 from netribeat.engine.algo.respiration_rate import (
     respiratory_per_minute,
