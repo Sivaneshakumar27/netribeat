@@ -5,7 +5,7 @@ import ADV from './fixtures/advanced_d1blhr.json';
 import { USER, mockApi, renderApp } from './helpers.jsx';
 
 const SID = 'aaaaaaaa-0000-4000-8000-000000000002';
-const signedIn = { 'POST /auth/refresh': () => [200, { token: 't', expiresAt: 'x', user: { ...USER, sex: null, heightCm: null, weightKg: null, hrRest: null } }] };
+const signedIn = { 'POST /auth/refresh': () => [200, { token: 't', expiresAt: 'x', user: { ...USER, gender: null, heightCm: null, weightKg: null, hrRest: null } }] };
 const DETAIL = {
   id: SID, userId: USER.id, userEmail: USER.email, userName: 'Ada L', type: 'rest', recordedAt: '2026-10-21T00:00:00Z',
   durationS: 305.8, status: 'ready', quality: 'good', reliable: true, avgHr: 74.4, maxHr: 90, rmssd: 68, trainingLoad: null,
@@ -84,20 +84,20 @@ describe('advanced HRV analysis', () => {
 });
 
 describe('profile subject details', () => {
-  it('saves sex, height, weight and resting HR', async () => {
+  it('saves gender, height, weight and resting HR', async () => {
     const calls = mockApi({
       ...signedIn,
       'PATCH /users/me': (b) => [200, { ...USER, ...b, name: 'Ada L' }],
     });
     renderApp('/account');
     await userEvent.click(await screen.findByRole('button', { name: 'Edit profile' }));
-    await userEvent.selectOptions(screen.getByLabelText('Sex'), 'female');
+    await userEvent.selectOptions(screen.getByLabelText('Gender'), 'female');
     await userEvent.type(screen.getByLabelText('Height (cm)'), '180');
     await userEvent.type(screen.getByLabelText('Weight (kg)'), '78');
     await userEvent.type(screen.getByLabelText('Resting HR (bpm)'), '60');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     await screen.findByText('Profile saved.');
-    expect(calls.find((c) => c.method === 'PATCH').body).toMatchObject({ sex: 'female', heightCm: 180, weightKg: 78, hrRest: 60 });
+    expect(calls.find((c) => c.method === 'PATCH').body).toMatchObject({ gender: 'female', heightCm: 180, weightKg: 78, hrRest: 60 });
     expect(screen.getByText(/BMI 24.1/)).toBeInTheDocument();
   });
 });

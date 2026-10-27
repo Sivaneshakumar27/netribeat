@@ -21,7 +21,7 @@ remapped, per CLAUDE.md).
 | POST `/api/v1/auth/forgot-password` | public | Email a reset code (same answer for any email) | 202 |
 | POST `/api/v1/auth/verify-reset-otp` | public | Code → single-use `resetToken` (10 min) | 200 |
 | POST `/api/v1/auth/reset-password` | reset token | New password; signs out every device | 204 |
-| GET/PATCH `/api/v1/users/me` | bearer | Profile: name, age, and optional `sex`, `heightCm` (80–250), `weightKg` (20–300), `hrRest` (25–120) for the report header | 200 |
+| GET/PATCH `/api/v1/users/me` | bearer | Profile: name, age, and optional `gender`, `heightCm` (80–250), `weightKg` (20–300), `hrRest` (25–120) for the report header | 200 |
 | POST `/api/v1/users/me/password` | bearer | Change password; signs out other devices | 204 |
 | GET `/api/v1/users/me/sessions` | bearer | My signed-in devices (no tokens; `current` marks this one) | 200 |
 | DELETE `/api/v1/users/me/sessions/{id}` | bearer | Sign out one of my devices (another user's id → 404) | 204 |
