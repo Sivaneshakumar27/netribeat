@@ -1,0 +1,168 @@
+# Architecture
+
+How the pieces fit together, and what every file is for.
+
+[← Back to README](../README.md)
+
+---
+
+## System
+
+```mermaid
+flowchart LR
+    U[Browser] -->|HTTPS| FE[React app<br/>Vercel]
+    FE -->|/api/* rewrite| BE[FastAPI backend<br/>Render]
+    BE --> PG[(PostgreSQL<br/>Neon)]
+    BE --> RD[(Redis<br/>rate limits)]
+    BE -->|SMTP| EM[Brevo<br/>email]
+```
+
+- **One origin.** Vercel forwards `/api/*` to the backend, so the browser talks to a single site
+  and the `HttpOnly` sign-in cookie works.
+- **Stateless backend.** Everything lives in PostgreSQL, including uploaded files. Redis holds
+  only short-lived rate-limit counters.
+- **Synchronous analysis.** A hex file is decoded and analysed during the upload request
+  (about a second), so no background worker is needed.
+
+## Request lifecycle
+
+```
+request → AccessLog → CORS → SecurityHeaders → BodyLimit → router → service → repository → DB
+                                                              │
+                                     errors raised as AppError → one JSON shape: {code, message, fields}
+```
+
+Routers only parse input and return schemas. Business rules live in services. SQL lives in
+repositories (or the service, for the small sessions feature).
+
+## Backend — `backend/src/netribeat/`
+
+### Top level
+
+| File | Purpose |
+|---|---|
+| `main.py` | Builds the app: middleware, error handlers, routers, start-up (DB tables, Redis) |
+| `config.py` | Every setting, read from environment variables; refuses unsafe production values |
+| `db.py` | Async SQLAlchemy engine, `Base`, per-request session, `init_db()` (creates/updates tables) |
+| `clock.py` | Injectable clock, so time can be frozen in tests |
+| `cli.py` | `netribeat` command: create admins/users, change roles, disable, cleanup |
+
+### `core/` — shared plumbing
+
+| File | Purpose |
+|---|---|
+| `api_model.py` | Base schema: camelCase JSON ↔ snake_case Python; shared error responses |
+| `errors.py` | `AppError` family (400 / 401 / 403 / 404 / 409 / 413 / 429 / 503) |
+| `middleware.py` | Security headers, request-size limit, access log without query strings |
+| `ratelimit.py` | Fixed-window counters in Redis |
+| `logging_config.py` | `key=value` logs with a filter that redacts anything secret-looking |
+
+### `auth/` — accounts, sign-in, users, admin
+
+| File | Purpose |
+|---|---|
+| `models.py` | Tables: `users`, `pending_registrations`, `auth_challenges`, `auth_sessions`, `audit_events` |
+| `schemas.py` | Request/response shapes for `/auth`, `/users/me`, `/admin` |
+| `security.py` | Argon2id hashing, JWT access tokens, OTP codes, HMAC token hashes |
+| `password_policy.py` + `common_passwords.txt` | Length, blocklist, no name/email, optional breach check |
+| `service.py` | Register, verify, login, refresh, logout, forgot/reset password, device sessions |
+| `repository.py` | SQL for sign-ups, challenges and device sessions |
+| `user_service.py` / `user_repository.py` | Profile updates and admin user management |
+| `audit.py` | Writes and lists security events (ids only, never emails or secrets) |
+| `deps.py` | FastAPI dependencies: current user, admin check, CSRF check, injected services |
+| `router.py` | `/api/v1/auth/*` |
+| `user_router.py` | `/api/v1/users/me/*` |
+| `admin_router.py` | `/api/v1/admin/*` |
+
+Details: [Authentication & email](authentication.md).
+
+### `email/` — outgoing mail
+
+| File | Purpose |
+|---|---|
+| `service.py` | Senders: `console` (dev), `file` (dev), `smtp` (real), `memory` (tests); template rendering |
+| `validation.py` | Email normalising (`strip().lower()`) and syntax check |
+| `templates/*.txt` | `verify_email`, `account_activated`, `account_exists`, `account_invited`, `password_reset_code`, `password_reset_done` |
+
+### `sessions/` — recordings and analysis
+
+| File | Purpose |
+|---|---|
+| `models.py` | Table `recordings`: upload details, the original file, status, summary columns, `metrics` and `signals` (JSON) |
+| `schemas.py` | Shapes for `/sessions` and the max-HR settings |
+| `router.py` | `/api/v1/sessions/*`, `/users/me/hr-max`, `/admin/users/{id}/hr-max` |
+| `service.py` | Upload, visibility rules (users see their own, admins all), re-analysis, max-HR resolution |
+| `processing.py` | Runs `engine/` and `hrv/` on one session and shapes the result for the API and PDF |
+| `engine/` | **Reference code, unchanged:** `decode_hex.py`, `analyse.py`, `derived_metrics/` (heart rate, training load, movement load) |
+| `hrv/` | Kubios-style HRV: `advanced.py`, `spectral.py`, `artefacts.py`, `constants.py` |
+
+Details: [Processing & algorithms](processing.md).
+
+### `reports/` and `health/`
+
+| File | Purpose |
+|---|---|
+| `reports/pdf.py` | Two-page PDF (matplotlib) |
+| `reports/exports.py` | JSON and CSV exports |
+| `health/router.py` | `/health` (process up) and `/health/ready` (database + Redis) |
+
+## Data model
+
+```mermaid
+erDiagram
+    users ||--o{ auth_sessions : "signed-in devices"
+    users ||--o{ auth_challenges : "reset codes"
+    pending_registrations ||--o{ auth_challenges : "sign-up codes"
+    users ||--o{ recordings : owns
+    users ||--o{ audit_events : "actor / target"
+```
+
+| Table | One row per |
+|---|---|
+| `users` | Person: email, name, role (`user`/`admin`), password hash, profile (age, gender, height, weight, resting HR, max-HR setting) |
+| `pending_registrations` | Sign-up waiting for its email code (never a usable account) |
+| `auth_challenges` | One-time code (stored as an HMAC), for sign-up or password reset |
+| `auth_sessions` | Signed-in device: hashed refresh token, expiry, user agent, IP |
+| `audit_events` | Security event (login, role change, upload, delete …) |
+| `recordings` | Analysed session: the hex file, subject details, summary numbers, full `metrics` and `signals` |
+
+Tables are created on start-up by `init_db()`; new columns are added there with
+`ADD COLUMN IF NOT EXISTS`.
+
+## Frontend — `frontend/src/`
+
+| Path | Purpose |
+|---|---|
+| `main.jsx` | Entry point; fixes the light theme |
+| `app.jsx` | Routes and the signed-in / admin guards |
+| `api/client.js` | All API calls; keeps the access token in memory, refreshes it once on 401, upload with progress, downloads |
+| `auth/AuthContext.jsx` | Current user; restores the sign-in on page load |
+| `components/` | `DashboardLayout` (sidebar), `ui` (buttons, fields, alerts), `badges`, `Modal` |
+| `charts/` | Dependency-free SVG charts: `LineChart`, `BarChart`, `ScatterChart`, `PoincarePlot`, `ZoneBars`, `Sparkline` |
+| `pages/` | One file per screen (below) |
+| `utils/`, `utils.js` | Formatting, session labels, email/password checks |
+| `styles/tokens.css` | Colours and spacing (black / orange brand, light theme) |
+| `styles/app.css` | All component styles |
+| `__tests__/` | Vitest + Testing Library tests |
+
+| Route | Page | Who |
+|---|---|---|
+| `/login`, `/admin/login` | `LoginPage` | Public |
+| `/register`, `/verify-email` | `RegisterPage`, `VerifyEmailPage` | Public |
+| `/forgot-password`, `/reset/verify`, `/reset/new` | Reset flow pages | Public |
+| `/` | `DashboardPage` — latest session and trends | Signed in |
+| `/sessions`, `/sessions/:id` | `SessionsPage`, `SessionPage` (+ `session/AdvancedHrv`) | Signed in |
+| `/upload` | `UploadPage` | Signed in |
+| `/settings` | `SettingsPage` — max-HR method | Signed in |
+| `/account`, `/security` | Profile; password and devices | Signed in |
+| `/admin`, `/admin/audit` | `admin/UsersPage`, `admin/AuditPage` | Admin |
+
+## Infrastructure — `infra/`
+
+| File | Purpose |
+|---|---|
+| `docker-compose.yml` | Local PostgreSQL + Redis |
+| `Dockerfile.backend` | Backend image (used by Render) |
+| `Dockerfile.web` | Frontend built and served by Caddy (self-hosted option) |
+| `docker-compose.prod.yml` + `Caddyfile` | Whole stack on one server with automatic HTTPS (self-hosted option) |
+| `.env.example`, `.env.production.example` | Templates for the Compose files |

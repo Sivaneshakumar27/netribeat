@@ -1,4 +1,4 @@
-"""Synapse hex decoder and derived metrics, copied unchanged from references/ (SES-4, SES-7).
+"""Synapse hex decoder and derived metrics, copied unchanged from the SES-4 / SES-7 engine.
 
 The engine files import each other as top-level modules (`from decode_hex import …`,
 `from derived_metrics… import …`), as when run as scripts. Putting this folder on the import

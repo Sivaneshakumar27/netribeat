@@ -2,7 +2,7 @@
 Methods Programs Biomed. 2014;113:210-220) and the cited primary methods.
 
 Pure NumPy/SciPy, no database. Input: beat times and raw RR intervals of one recording.
-Every option has a documented default; see docs/analysis.md "Advanced HRV".
+Every option has a documented default; see docs/processing.md (Kubios-style HRV).
 
 Definitions confirmed from a Kubios report supplied by the user:
 * "log" power = natural logarithm; n.u. = band / (LF + HF) × 100 (= band / (total − VLF))

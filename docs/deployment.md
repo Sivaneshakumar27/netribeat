@@ -1,170 +1,143 @@
-# Deploying NetriBeat on a real domain (HTTPS)
+# Deployment
 
-Result: `https://your-domain` serves NetriBeat (accounts, recording upload, analysis
-dashboards and reports) to anyone on the internet. Certificates come from Let's Encrypt and renew automatically. Real emails go
-out through your SMTP provider.
+The live setup: **Vercel** (website) → **Render** (backend) → **Neon** (database), with Redis on
+Render and email through **Brevo**.
 
-```
-Internet ──443/80──▶ Caddy (web container: HTTPS, React app, /api proxy)
-                          │ private Docker network
-                          ├──▶ FastAPI (api container, 2 workers, migrations on start)
-                          ├──▶ Arq worker (analysis jobs; shares the storage volume)
-                          ├──▶ PostgreSQL 16 (no public port, persistent volume)
-                          └──▶ Redis 7 (no public port, password protected)
-```
+[← Back to README](../README.md)
 
-## What you need
+---
 
-1. **A Linux server** with a public IP: Ubuntu 24.04, 1 vCPU and 2 GB RAM is enough to
-   start. Any provider works (Hetzner, DigitalOcean, AWS Lightsail, Azure, OVH, …).
-2. **A domain or subdomain**, e.g. `app.example.org`. In your DNS provider, create an
-   **A record** pointing `app` to the server's IP. Wait until
-   `Resolve-DnsName app.example.org` in PowerShell shows that IP.
-3. **An SMTP account** (see "Email" below).
-4. On your Windows PC: PowerShell. `ssh` and `scp` are built into Windows 10/11.
-
-## Step 1: prepare the server (run once)
-
-From **PowerShell on your PC**:
-
-```powershell
-ssh root@YOUR_SERVER_IP
+```mermaid
+flowchart LR
+    B[Browser] --> V[Vercel<br/>React app]
+    V -->|/api/* rewrite| R[Render<br/>Docker: infra/Dockerfile.backend]
+    R --> N[(Neon PostgreSQL)]
+    R --> K[(Render Key Value<br/>Redis)]
+    R -->|SMTP :2525| E[Brevo]
+    U[UptimeRobot] -.->|/api/v1/health every 5 min| R
 ```
 
-You are now **on the server** (a Linux shell). Run:
+Every push to `main` on GitHub redeploys Render and Vercel automatically.
 
-```bash
-apt-get update && apt-get -y upgrade
-curl -fsSL https://get.docker.com | sh            # installs Docker Engine + Compose plugin
-ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw allow 443/udp && ufw --force enable
-mkdir -p /opt/netribeat && exit
-```
+## 1 · Database — Neon
 
-## Step 2: upload the project
+1. <https://neon.com> → **Create project** (region close to Render, e.g. Singapore).
+2. **Connect** → turn **Connection pooling off** → copy the connection string.
+3. Convert it: start with `postgresql+asyncpg://`, replace everything after `?` with `ssl=require`:
 
-From **PowerShell on your PC**, in the folder that contains the zip:
+   ```
+   postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?ssl=require
+   ```
 
-```powershell
-scp .\netribeat-auth.zip root@YOUR_SERVER_IP:/opt/netribeat/
-ssh root@YOUR_SERVER_IP
-```
+4. Create your admin from your PC (tables are created automatically):
 
-On the server:
+   ```powershell
+   cd backend
+   $env:DATABASE_URL = "postgresql+asyncpg://…neon…/neondb?ssl=require"
+   uv run netribeat create-admin --email you@example.org --first-name You --last-name Admin
+   Remove-Item Env:DATABASE_URL
+   ```
 
-```bash
-apt-get install -y unzip
-cd /opt/netribeat && unzip -o netribeat-auth.zip && cd netribeat/infra
-cp .env.production.example .env.production
-chmod 600 .env.production
-for i in 1 2 3 4; do openssl rand -base64 48 | tr -d '\n=+/' | cut -c1-48; done   # 4 secrets
-nano .env.production
-```
+## 2 · Email — Brevo
 
-In `nano`, set `DOMAIN`, `ACME_EMAIL`, the four secrets (`POSTGRES_PASSWORD`,
-`REDIS_PASSWORD`, `JWT_SECRET` and `OTP_PEPPER`, all different), and your SMTP details.
-Save with `Ctrl+O`, `Enter`, then exit with `Ctrl+X`.
+1. <https://www.brevo.com> → **Senders** → add and verify your sender address
+   (with your own domain, also set up SPF/DKIM).
+2. **SMTP & API → SMTP** → note the login and generate an SMTP key.
+3. Server `smtp-relay.brevo.com`, **port 2525** (Render's free tier blocks 25/465/587).
 
-## Step 3: start it
+## 3 · Redis — Render Key Value
 
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-docker compose -f docker-compose.prod.yml --env-file .env.production ps     # all "healthy"/"running"
-docker compose -f docker-compose.prod.yml --env-file .env.production logs -f web   # watch the certificate being issued; Ctrl+C to stop watching
-```
+Render → **New → Key Value** → Free, same region → copy the **internal** URL (`redis://red-xxxx:6379`).
 
-The first build takes a few minutes. Database migrations run automatically every time
-the API starts.
+## 4 · Backend — Render
 
-## Step 4: create the first administrator
+**New → Web Service** → your GitHub repo:
 
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
-  netribeat create-admin --email you@example.org --first-name Your --last-name Name
-```
-
-You'll be asked for the password twice (12+ characters; it isn't shown). This is the
-**only** way to create an administrator.
-
-## Step 5: use it
-
-- `https://YOUR_DOMAIN/register`: anyone can sign up and gets a real email with a code.
-- `https://YOUR_DOMAIN/admin/login`: administrator sign-in. The dashboard has Users
-  (search, create, enable/disable, roles, sign out everywhere) and Audit log.
-- `https://YOUR_DOMAIN/upload`: upload Movesense `.json` / `.csv` recordings. They are
-  analysed by the worker within seconds.
-- `https://YOUR_DOMAIN/api/v1/health/ready` should show `"database":"ok","redis":"ok"`.
-- `dc ps` (see below) should show the `worker` as running. Without it, uploads stay
-  "processing". Jobs wait in Redis and run as soon as the worker starts, and on start
-  the worker also picks up any session that was left half-done.
-
-## Email (SMTP)
-
-Production refuses to start without SMTP. Use any provider:
-
-| Provider | SMTP_HOST | Port / mode | Username / password |
-|---|---|---|---|
-| Brevo | `smtp-relay.brevo.com` | 587 STARTTLS | your login / SMTP key |
-| SendGrid | `smtp.sendgrid.net` | 587 STARTTLS | `apikey` / API key |
-| Mailgun | `smtp.mailgun.org` | 587 STARTTLS | domain SMTP credentials |
-| Amazon SES | `email-smtp.<region>.amazonaws.com` | 587 STARTTLS | SES SMTP credentials |
-| Microsoft 365 | `smtp.office365.com` | 587 STARTTLS | mailbox / password (SMTP AUTH must be enabled) |
-| Gmail / Google Workspace | `smtp.gmail.com` | 587 STARTTLS | address / **app password** (needs 2-step verification) |
-
-For port 465, set `SMTP_PORT=465`, `SMTP_SSL=true`, `SMTP_STARTTLS=false`.
-
-So that mail isn't marked as spam, verify your sending domain with the provider and add
-the **SPF** and **DKIM** DNS records it gives you (and ideally DMARC). `EMAIL_FROM`
-must use that domain.
-
-If delivery fails, the request still succeeds: this is deliberate, so responses can't
-reveal account existence. The failure is logged. Check it with
-`docker compose ... logs api | grep email_delivery_failed`.
-
-## Operating it
-
-All commands run in `/opt/netribeat/netribeat/infra`. Define a shortcut first:
-
-```bash
-alias dc='docker compose -f docker-compose.prod.yml --env-file .env.production'
-```
-
-| Task | Command |
+| Setting | Value |
 |---|---|
-| Status | `dc ps` |
-| Logs | `dc logs -f api` / `dc logs -f web` |
-| Back up the database | `dc exec -T postgres pg_dump -U netribeat -Fc netribeat > /root/netribeat-$(date +%F).dump` |
-| Daily automatic backup | `crontab -e`, then add: `15 3 * * * cd /opt/netribeat/netribeat/infra && docker compose -f docker-compose.prod.yml --env-file .env.production exec -T postgres pg_dump -U netribeat -Fc netribeat > /root/netribeat-$(date +\%F).dump && find /root -name 'netribeat-*.dump' -mtime +14 -delete` |
-| Back up uploaded recordings | `docker run --rm -v netribeat_storage:/data -v /root:/backup alpine tar czf /backup/netribeat-files-$(date +%F).tgz -C /data .` |
-| Worker logs / scale up | `dc logs -f worker` / `dc up -d --scale worker=2` |
-| Copy backups off the server (PowerShell on your PC) | `scp root@YOUR_SERVER_IP:/root/netribeat-*.dump .` |
-| Restore a backup | `dc stop api worker cleanup` → `cat FILE.dump \| dc exec -T postgres pg_restore -U netribeat -d netribeat --clean --if-exists` → `dc start api worker cleanup`; restore files with `docker run --rm -v netribeat_storage:/data -v /root:/backup alpine tar xzf /backup/FILE.tgz -C /data` |
-| Update to a new version | upload and unzip the new zip (step 2, but keep `.env.production`), then `dc up -d --build`. Migrations apply automatically; data volumes are kept |
-| Disable a compromised account | `dc exec api netribeat disable-user --email person@example.org` (signs them out everywhere) |
-| Sign everyone out (e.g. after a leak) | change `JWT_SECRET` in `.env.production`, then `dc up -d` |
-| Rotate the database password | `dc exec postgres psql -U netribeat -c "ALTER ROLE netribeat PASSWORD 'NEW'"`, update `POSTGRES_PASSWORD`, `dc up -d` |
+| Language | Docker |
+| Dockerfile Path | `infra/Dockerfile.backend` |
+| Build Context | `.` |
+| Health Check Path | `/api/v1/health` |
 
-**Never** run `dc down -v`: `-v` deletes the database and certificate volumes.
+Environment variables:
 
-## Security notes for this deployment
+```
+PORT=8000
+WEB_CONCURRENCY=1
+ENVIRONMENT=production
+API_DOCS_ENABLED=false
+COOKIE_SECURE=true
+DATABASE_URL=postgresql+asyncpg://…neon…?ssl=require
+REDIS_URL=redis://red-xxxx:6379
+JWT_SECRET=<secret 1>
+OTP_PEPPER=<secret 2>
+FRONTEND_BASE_URL=https://<your-site>.vercel.app
+CORS_ORIGINS=https://<your-site>.vercel.app
+EMAIL_BACKEND=smtp
+EMAIL_FROM=NetriBeat <verified-sender@example.com>
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=2525
+SMTP_USERNAME=<Brevo login>
+SMTP_PASSWORD=<Brevo SMTP key>
+HIBP_CHECK_ENABLED=true
+```
 
-- Uploads are capped at 512 MB per request by Caddy, and at 50 MB per file and 10 files
-  by the API. Files are stored on the `storage` volume under random names.
-- Only ports 22, 80 and 443 are open. PostgreSQL and Redis have no published ports.
-- Caddy discards client-supplied `X-Forwarded-For`, so rate limits and the audit log
-  see real client IPs. The API container can only be reached from Caddy.
-- The API runs as an unprivileged user. API docs are off in production
-  (`API_DOCS_ENABLED=true` turns them on).
-- Use SSH keys and disable password login for SSH (`PasswordAuthentication no` in
-  `/etc/ssh/sshd_config`).
+`ENVIRONMENT=development` also works (the safety checks are then skipped). Full list:
+[Configuration](configuration.md).
 
-## What was and wasn't verified
+Check: `https://<service>.onrender.com/api/v1/health/ready` → `"database": "ok", "redis": "ok"`.
 
-The exact Caddyfile, the API in `ENVIRONMENT=production` with `JOB_BACKEND=arq`, the
-Arq worker as a separate process, migrations, CLI admin bootstrap, and real SMTP
-delivery were run together over HTTPS. All 10 supplied recordings were uploaded and
-analysed this way. Everything worked:
-Secure cookies, HSTS/CSP, HTTP→HTTPS redirect, spoofed-IP rejection, admin actions, and
-password reset by email. The **Docker images and `docker-compose.prod.yml` were not
-built or run**, because Docker isn't available in the environment where this was
-prepared. If `dc up --build` reports an error, the message points to the line; the
-same configuration was verified outside containers.
+## 5 · Website — Vercel
+
+1. `frontend/vercel.json` must point at your Render service:
+
+   ```json
+   { "source": "/api/:path*", "destination": "https://<service>.onrender.com/api/:path*" }
+   ```
+
+2. Vercel → **Add New → Project** → import the repo → **Root Directory `frontend`**, preset
+   **Vite**, build `npm run build`, output `dist`.
+3. Put the Vercel address in Render's `FRONTEND_BASE_URL` and `CORS_ORIGINS` — exactly, with
+   `https://` and no trailing `/`.
+
+## 6 · Keep it awake — UptimeRobot
+
+New HTTP(s) monitor → `https://<service>.onrender.com/api/v1/health`, every 5 minutes. Use
+`/health` (not `/health/ready`) so Neon can still sleep.
+
+## Free-tier limits
+
+| Limit | Effect |
+|---|---|
+| Render sleeps after 15 min idle | First visit is slow — UptimeRobot prevents it |
+| Render: 512 MB, 0.1 CPU | Keep `WEB_CONCURRENCY=1` |
+| Neon: 0.5 GB | Uploaded hex files and results live in the database; delete old sessions when full |
+| Neon: 6-hour restore window | Back up regularly: `pg_dump -Fc "postgresql://…neon…?sslmode=require" > backup.dump` |
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `unexpected keyword argument 'sslmode'` | Use `?ssl=require` in `DATABASE_URL` |
+| `prepared statement … does not exist` | You used Neon's pooled host (`-pooler`); turn pooling off |
+| `Unsafe production settings: …` | Fix the listed variable, or use `ENVIRONMENT=development` |
+| No emails, log shows `email_delivery_failed` | Port 2525, verified sender, Brevo → Transactional → Logs, spam folder |
+| Logged out on every reload / "Origin not allowed" | `FRONTEND_BASE_URL` / `CORS_ORIGINS` don't exactly match the Vercel address |
+| Every API call 404 on Vercel | `vercel.json` destination is wrong, or Root Directory isn't `frontend` |
+| `redis: unavailable` | Wrong `REDIS_URL` or a different region |
+
+## Self-hosting (one server)
+
+`infra/docker-compose.prod.yml` runs everything on one Linux server — PostgreSQL, Redis, the
+backend, the website and Caddy with automatic HTTPS:
+
+```bash
+cd infra
+cp .env.production.example .env.production     # fill it in
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
+  netribeat create-admin --email you@example.org --first-name You --last-name Admin
+```
+
+Point your domain's DNS at the server first; open ports 80 and 443 only.

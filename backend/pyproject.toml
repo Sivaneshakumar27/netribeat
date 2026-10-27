@@ -43,7 +43,7 @@ packages = ["src/netribeat"]
 line-length = 100
 target-version = "py312"
 src = ["src"]
-# The engine is copied unchanged from references/ (SES-4, SES-7): never reformat it.
+# The engine is copied unchanged from the SES-4 / SES-7 reference engine: never reformat it.
 extend-exclude = ["src/netribeat/sessions/engine/decode_hex.py", "src/netribeat/sessions/engine/analyse.py", "src/netribeat/sessions/engine/derived_metrics"]
 
 [tool.ruff.lint]
