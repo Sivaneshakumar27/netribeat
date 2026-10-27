@@ -73,7 +73,7 @@ from netribeat.rr_interval.rr_intervals import rr_intervals
 # every number comes from engine/.
 
 
-ANALYSIS_VERSION = "hex-1.1"
+ANALYSIS_VERSION = "hex-1.2"
 ZONE_KEYS = ["belowZ1", "z1", "z2", "z3", "z4", "z5"]  # engine zones 0-5
 HRV_WINDOW_S = 300.0  # spec HRV: first 5 minutes of the corrected RR series
 HRV_MIN_BEATS = 30
@@ -125,15 +125,14 @@ def _zones_and_load(
     df: pd.DataFrame, hr: pd.DataFrame, inputs: Inputs
 ) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, float] | None, str | None]:
     """Engine output, max HR used, time in zones (s) and why zones/load are missing."""
+    peak = hr["value"].max()
+    no_max = inputs.max_hr is None and inputs.age is None
+    if no_max and not pd.notna(peak):
+        return {}, None, None, "No valid heart rate in this recording, so zones can't be worked out"
     reason: str | None = None
-    if inputs.max_hr is None and inputs.age is None:
-        reason = "Enter the athlete's age or max HR on upload"
-    elif inputs.gender not in ("male", "female"):
+    if inputs.gender not in ("male", "female"):
         reason = "Training load needs the athlete's gender (male or female) on upload"
-    if inputs.max_hr is None and inputs.age is None:
-        return {}, None, None, reason
-
-    max_hr = inputs.max_hr or theoretical_max_hr(inputs.age)
+    max_hr = float(peak) if no_max else inputs.max_hr or theoretical_max_hr(inputs.age)
     if reason is None:
         out = analyse_session(df, inputs.age, inputs.gender, max_hr, inputs.resting_hr)
         ms = out["training_metrics"]["hr_zone_durations"]
@@ -142,6 +141,14 @@ def _zones_and_load(
         resting = inputs.resting_hr or DEFAULT_RESTING_HR
         thresholds = zone_thresholds(max_hr, resting)
         ms = zone_durations_ms(hr["timestamp"], hr_zones(hr["value"], thresholds))
+    if no_max:
+        hr_max = {
+            "value": round(max_hr),
+            "method": "observed",
+            "label": "Peak HR in this recording (no age or max HR entered)",
+            "detail": f"{round(max_hr)} bpm",
+        }
+        return out, hr_max, {ZONE_KEYS[int(z)]: v / 1000 for z, v in ms.items()}, reason
     hr_max = {
         "value": round(max_hr),
         "method": inputs.max_hr_method or "age",
@@ -356,6 +363,7 @@ class Recording(Base):
     max_hr: Mapped[float | None] = mapped_column(Float)
     min_hr: Mapped[float | None] = mapped_column(Float)
     training_load: Mapped[float | None] = mapped_column(Float)
+    rmssd: Mapped[float | None] = mapped_column(Float)
     movement_load: Mapped[float | None] = mapped_column(Float)
     metrics: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     signals: Mapped[dict[str, Any] | None] = deferred(mapped_column(JSONB))
@@ -391,6 +399,7 @@ class SessionSummary(ApiModel):
     min_hr: float | None
     rmssd: float | None
     training_load: float | None
+    training_load_reason: str | None = None
     movement_load: float | None
     file_name: str
 
@@ -600,6 +609,7 @@ async def _apply(
     rec.duration_s = result.duration_s
     rec.avg_hr, rec.max_hr, rec.min_hr = m["hr"]["avg"], m["hr"]["max"], m["hr"]["min"]
     rec.training_load, rec.movement_load = m["trainingLoad"], m["movementLoad"]
+    rec.rmssd = (m.get("timeDomain") or {}).get("rmssd")
     rec.metrics, rec.signals = m, result.signals
 
 
@@ -779,6 +789,14 @@ router = APIRouter(prefix="/sessions", tags=["Sessions"])
 E = error_responses(400, 401, 404)
 
 
+def _load_reason(rec: Recording) -> str:
+    if rec.status != "ready":
+        return "The session hasn't been analysed yet"
+    if rec.gender not in ("male", "female"):
+        return "Needs the athlete's gender (male or female) on upload"
+    return "No valid heart rate to compute it from"
+
+
 def _summary(rec: Recording, owner: User | None) -> dict[str, object]:
     return {
         "id": rec.id,
@@ -794,8 +812,9 @@ def _summary(rec: Recording, owner: User | None) -> dict[str, object]:
         "avg_hr": rec.avg_hr,
         "max_hr": rec.max_hr,
         "min_hr": rec.min_hr,
-        "rmssd": None,
+        "rmssd": round(rec.rmssd, 1) if rec.rmssd is not None else None,
         "training_load": rec.training_load,
+        "training_load_reason": None if rec.training_load is not None else _load_reason(rec),
         "movement_load": rec.movement_load,
         "file_name": rec.file_name,
     }
@@ -923,8 +942,15 @@ async def get_session(session_id: uuid.UUID, user: CurrentUser, db: DbDep) -> Se
 
 
 @router.get("/{session_id}/analysis", response_model=AnalysisOut, responses=E, summary="Metrics")
-async def get_analysis(session_id: uuid.UUID, user: CurrentUser, db: DbDep) -> AnalysisOut:
+async def get_analysis(
+    session_id: uuid.UUID, user: CurrentUser, db: DbDep, clock: ClockDep
+) -> AnalysisOut:
     rec = await _ready(db, user, session_id)
+    if (rec.metrics or {}).get("analysisVersion") != ANALYSIS_VERSION:
+        # Older results (e.g. no zones without age) are rebuilt once from the stored file.
+        owner = await db.get(User, rec.user_id)
+        if owner is not None:
+            await reanalyse(db, clock, rec, owner)
     return AnalysisOut(session_id=rec.id, metrics=rec.metrics or {})
 
 

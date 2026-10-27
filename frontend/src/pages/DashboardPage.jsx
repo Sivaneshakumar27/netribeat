@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const sd = rmssds.length > 1 ? Math.sqrt(rmssds.reduce((a, b) => a + (b - mean) ** 2, 0) / (rmssds.length - 1)) : null;
   const z = latest?.rmssd !== null && latest?.rmssd !== undefined && sd ? (latest.rmssd - mean) / sd : null;
   const withRmssd = chrono.filter((s) => s.rmssd !== null);
+  const withLoad = chrono.filter((s) => s.trainingLoad !== null);
 
   return (
     <>
@@ -54,13 +55,13 @@ export default function DashboardPage() {
           <div className="nb-tiles nb-tiles-4">
             <MetricTile label="Avg HR · latest" value={num(latest.avgHr, 0)} unit="bpm" sub={`max ${num(latest.maxHr, 0)} bpm · ${latest.type}`} />
             <MetricTile label="RMSSD · latest" value={num(latest.rmssd, 1)} unit="ms"
-              sub={z !== null ? `${z >= 0 ? '+' : ''}${z.toFixed(1)} SD vs your mean` : 'needs ≥ 2 sessions with HRV'} />
-            <MetricTile label="Training load · latest" value={num(latest.trainingLoad, 0)} unit="AU" sub="Banister TRIMP" />
+              sub={latest.rmssd === null ? 'Too few clean beats for HRV in this session' : z !== null ? `${z >= 0 ? '+' : ''}${z.toFixed(1)} SD vs your mean` : 'Compared with your mean once 2+ sessions have HRV'} />
+            <MetricTile label="Training load · latest" value={num(latest.trainingLoad, 0)} unit="AU" sub={latest.trainingLoad === null ? latest.trainingLoadReason : 'Banister TRIMP'} />
             <div className="nb-tile"><div className="nb-tile-label">Signal quality · latest</div>
               <div className="nb-tile-value nb-tile-badge"><QualityBadge quality={latest.quality} reliable={latest.reliable} /></div>
               <div className="nb-tile-sub">{formatDateTime(latest.recordedAt)}</div></div>
           </div>
-          {chrono.length >= 2 ? (
+          {chrono.length ? (
             <div className="nb-grid-2 nb-grid-gap">
               <section className="nb-card"><h2 className="nb-card-title">RMSSD by session</h2>
                 {withRmssd.length >= 2 ? (
@@ -68,12 +69,17 @@ export default function DashboardPage() {
                     series={[{ name: 'RMSSD', unit: 'ms', color: 'var(--band-hf)', xs: withRmssd.map((_, i) => i + 1), ys: withRmssd.map((s) => s.rmssd) }]}
                     bands={mean !== null && sd ? [] : []}
                     xFormat={(v) => `#${Math.round(v)}`} yFormat={(v) => Math.round(v)} xLabel="Session" />
-                ) : <p className="nb-muted">Needs at least two sessions with HRV.</p>}
+                ) : <p className="nb-muted">{withRmssd.length
+                  ? 'A trend needs at least two sessions with HRV; only one so far.'
+                  : 'No session has enough clean beats for HRV yet.'}</p>}
                 {mean !== null ? <p className="nb-muted nb-small">Mean {mean.toFixed(1)} ms{sd ? ` · SD ${sd.toFixed(1)} ms` : ''}</p> : null}
               </section>
               <section className="nb-card"><h2 className="nb-card-title">Training load by session</h2>
-                <BarChart title="Training load by session" unit="AU"
-                  items={chrono.map((s, i) => ({ label: `#${i + 1}`, value: s.trainingLoad, color: TYPE_COLOR[s.type], sub: `${s.type} · ${formatDateTime(s.recordedAt)}` }))} />
+                {withLoad.length ? (
+                  <BarChart title="Training load by session" unit="AU"
+                    items={chrono.map((s, i) => ({ label: `#${i + 1}`, value: s.trainingLoad, color: TYPE_COLOR[s.type], sub: s.trainingLoad === null ? s.trainingLoadReason : `${s.type} · ${formatDateTime(s.recordedAt)}` }))} />
+                ) : <p className="nb-muted">Not available for any session. {chrono[chrono.length - 1].trainingLoadReason || "No training load was computed"}. Re-upload with the athlete's gender to get it.</p>}
+                {withLoad.length > 0 && withLoad.length < chrono.length ? <p className="nb-muted nb-small">{chrono.length - withLoad.length} session(s) have no training load: the athlete's gender wasn't entered on upload.</p> : null}
               </section>
             </div>
           ) : null}

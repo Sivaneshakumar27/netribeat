@@ -40,7 +40,7 @@ function Overview({ m, sig }) {
       </div>
       <div className="nb-split">
         <section className="nb-card"><h2 className="nb-card-title">Heart rate over time</h2><HrChart m={m} sig={sig} /></section>
-        <section className="nb-card"><h2 className="nb-card-title">Zone distribution</h2><ZoneBars timeInZonesS={m.timeInZonesS} hrMax={hm} /></section>
+        <section className="nb-card"><h2 className="nb-card-title">Zone distribution</h2><ZoneBars timeInZonesS={m.timeInZonesS} hrMax={hm?.value} reason={m.zonesUnavailableReason} /></section>
       </div>
     </>
   );
@@ -119,7 +119,7 @@ function HeartRate({ m, sig }) {
         </div>
       </section>
       <section className="nb-card"><h2 className="nb-card-title">Heart rate over time</h2><HrChart m={m} sig={sig} /></section>
-      <section className="nb-card"><h2 className="nb-card-title">Zone distribution</h2><ZoneBars timeInZonesS={m.timeInZonesS} hrMax={hm?.value} /></section>
+      <section className="nb-card"><h2 className="nb-card-title">Zone distribution</h2><ZoneBars timeInZonesS={m.timeInZonesS} hrMax={hm?.value} reason={m.zonesUnavailableReason} /></section>
     </>
   );
 }

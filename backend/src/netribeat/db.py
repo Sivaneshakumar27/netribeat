@@ -57,7 +57,10 @@ ALTER TABLE recordings
   ADD COLUMN IF NOT EXISTS gender VARCHAR(10),
   ADD COLUMN IF NOT EXISTS resting_hr INTEGER,
   ADD COLUMN IF NOT EXISTS height_cm INTEGER,
-  ADD COLUMN IF NOT EXISTS weight_kg DOUBLE PRECISION;
+  ADD COLUMN IF NOT EXISTS weight_kg DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS rmssd DOUBLE PRECISION;
+UPDATE recordings SET rmssd = (metrics->'timeDomain'->>'rmssd')::float
+  WHERE rmssd IS NULL AND metrics->'timeDomain'->>'rmssd' IS NOT NULL;
 """
 
 
