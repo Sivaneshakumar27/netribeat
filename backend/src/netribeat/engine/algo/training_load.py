@@ -9,7 +9,7 @@ import numpy as np
 
 import pandas as pd
 
-from netribeat.engine.algo.hr.heart_rate import BUCKET_S
+from netribeat.engine.algo.heart_rate import BUCKET_S
 
 DEFAULT_RESTING_HR = 50  # lib-netrin get_default_min_hr()
 ZONE_FRACTIONS = [0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]  # zone 0-6 lower bounds, fraction of max HR

@@ -89,24 +89,24 @@ Details: [Authentication & email](authentication.md).
 ```
 hex_decoder/       decode_hex.py   Synapse hex → RR, HR, RMS, steps per session (reference, unchanged)
                    reader.py       read an upload: decode, athlete name from the file name, errors
-rr_interval/       rr_intervals.py beat times and RR intervals of one session
-preprocessing/     artefact_correction.py  artefact detection + correction (spec 20 % rule, Kubios levels)
+preprocessing/     rr_intervals.py         beat times and RR intervals of one session
+                   artefact_correction.py  artefact detection + correction (spec 20 % rule, Kubios levels)
                    detrending.py           smoothness-priors detrending, 4 Hz resampling
 engine/algo/
-  hr/heart_rate.py                   smoothed 3 s HR series (+ 3 s buckets, exponential smoothing)
-  max_min_avg_hr/hr_statistics.py    session min / avg / max HR
-  training_load/training_load.py     zones, time in zone, Banister TRIMP, intensity (+ durations)
-  movement_load/movement_load.py     RMS series, movement load and intensity
+  heart_rate.py                      smoothed 3 s HR series (+ 3 s buckets, exponential smoothing)
+  hr_statistics.py                   session min / avg / max HR
+  training_load.py                   zones, time in zone, Banister TRIMP, intensity (+ durations)
+  movement_load.py                   RMS series, movement load and intensity
   hrv_td_fd_nl/time_domain.py        every time-domain statistic (spec + Kubios + over time)
   hrv_td_fd_nl/frequency_domain.py   every spectrum: Lomb–Scargle, Welch FFT, AR; band powers
   hrv_td_fd_nl/nonlinear.py          Poincaré, ApEn, SampEn, DFA, recurrence
   hrv_td_fd_nl/hrv_analysis.py       Kubios-style HRV run: sample, correction, TD/FD/NL, ANS
-  respiration_rate/respiration_rate.py  breaths per minute from the HF peak
+  respiration_rate.py                breaths per minute from the HF peak
 sessions.py        one file: analysis of a session (full metrics + signals), table, schemas,
                    rules and the /api/v1/sessions routes
 ```
 
-Flow: `hex_decoder → rr_interval → preprocessing → engine → sessions.py (analysis output, database, API)`.
+Flow: `hex_decoder → preprocessing → engine → sessions.py (analysis output, database, API)`.
 The reference engine code (decoder, heart rate, zones, training and movement load) keeps its
 original function code; only its location and imports changed.
 

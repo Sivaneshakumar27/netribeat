@@ -42,18 +42,18 @@ from netribeat.clock import Clock
 from netribeat.core.api_model import ApiModel, error_responses
 from netribeat.core.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from netribeat.db import Base
-from netribeat.engine.algo.hr.heart_rate import hr_time_series
+from netribeat.engine.algo.heart_rate import hr_time_series
+from netribeat.engine.algo.hr_statistics import hr_metrics
 from netribeat.engine.algo.hrv_td_fd_nl.frequency_domain import lomb_scargle_frequency_domain
 from netribeat.engine.algo.hrv_td_fd_nl.hrv_analysis import AdvancedOptions, analyse_advanced
 from netribeat.engine.algo.hrv_td_fd_nl.nonlinear import poincare
 from netribeat.engine.algo.hrv_td_fd_nl.time_domain import basic_time_domain
-from netribeat.engine.algo.max_min_avg_hr.hr_statistics import hr_metrics
-from netribeat.engine.algo.movement_load.movement_load import movement_metrics, rms_time_series
-from netribeat.engine.algo.respiration_rate.respiration_rate import (
+from netribeat.engine.algo.movement_load import movement_metrics, rms_time_series
+from netribeat.engine.algo.respiration_rate import (
     respiratory_per_minute,
     respiratory_rate,
 )
-from netribeat.engine.algo.training_load.training_load import (
+from netribeat.engine.algo.training_load import (
     DEFAULT_RESTING_HR,
     hr_zones,
     theoretical_max_hr,
@@ -64,11 +64,11 @@ from netribeat.engine.algo.training_load.training_load import (
 from netribeat.hex_decoder.decode_hex import start_time_from_filename
 from netribeat.hex_decoder.reader import ProcessingError, athlete_name, decode, item
 from netribeat.preprocessing.artefact_correction import correct_artefacts
+from netribeat.preprocessing.rr_intervals import rr_intervals
 from netribeat.reports import exports, pdf
-from netribeat.rr_interval.rr_intervals import rr_intervals
 
 # ================================================================== analysis of one session
-# hex_decoder → rr_interval → preprocessing → engine/algo → the metrics and signals stored below.
+# hex_decoder → preprocessing → engine/algo → the metrics and signals stored below.
 # Only the inputs (athlete age, gender, max HR, resting HR) and field names are chosen here;
 # every number comes from engine/.
 

@@ -1,7 +1,7 @@
 # Processing & algorithms
 
 How a Synapse hex file becomes heart rate, zones, training load, movement load and HRV.
-Code: `backend/src/netribeat/` — `hex_decoder/`, `rr_interval/`, `preprocessing/`, `engine/`, `sessions.py`.
+Code: `backend/src/netribeat/` — `hex_decoder/`, `preprocessing/`, `engine/`, `sessions.py`.
 
 [← Back to README](../README.md)
 
@@ -16,7 +16,7 @@ flowchart TD
     S --> HR[heart_rate<br/>3 s smoothed HR · min/avg/max]
     S --> TL[training_load<br/>zones · time in zone · TRIMP]
     S --> ML[movement_load<br/>RMS series · load · intensity]
-    S --> RR[rr_interval + preprocessing<br/>beats · artefacts · detrending]
+    S --> RR[preprocessing<br/>beats · artefacts · detrending]
     RR --> HRV[hrv_td_fd_nl<br/>time · frequency · nonlinear]
     HR & TL & ML & HRV --> P[sessions.py<br/>shape metrics + signals]
     P --> DB[(recordings table)]
@@ -26,12 +26,12 @@ flowchart TD
 | Stage | File | Origin |
 |---|---|---|
 | Decode | `hex_decoder/decode_hex.py`, `hex_decoder/reader.py` | Reference code (SES-4), **unchanged** |
-| RR intervals | `rr_interval/rr_intervals.py` | Beat times and RR from the decoder |
+| RR intervals | `preprocessing/rr_intervals.py` | Beat times and RR from the decoder |
 | Artefacts, detrending | `preprocessing/artefact_correction.py`, `preprocessing/detrending.py` | Spec rule + Kubios-compatible |
-| Heart rate, min/avg/max | `engine/algo/hr/`, `engine/algo/max_min_avg_hr/` | Reference code (SES-7), function code unchanged |
-| Zones, TRIMP, movement | `engine/algo/training_load/`, `engine/algo/movement_load/` | Reference code (SES-7), function code unchanged |
+| Heart rate, min/avg/max | `engine/algo/heart_rate.py`, `engine/algo/hr_statistics.py` | Reference code (SES-7), function code unchanged |
+| Zones, TRIMP, movement | `engine/algo/training_load.py`, `engine/algo/movement_load.py` | Reference code (SES-7), function code unchanged |
 | HRV | `engine/algo/hrv_td_fd_nl/{time_domain,frequency_domain,nonlinear}.py` | Kubios-compatible definitions |
-| Respiration | `engine/algo/respiration_rate/respiration_rate.py` | HF peak × 60 |
+| Respiration | `engine/algo/respiration_rate.py` | HF peak × 60 |
 | Outputs | `engine/algo/hrv_td_fd_nl/hrv_analysis.py`, `sessions.py` (`analyse_session`, `analyse`) | Chooses inputs, names fields |
 
 Analysis runs inside the upload request; a 30-minute file takes about a second.
@@ -81,7 +81,7 @@ Each sample `R M R R M M` packs two 12-bit values: **RR** in ms (0 = no beat in 
 | `rms` | 250 ms slot | accelerometer RMS |
 | `steps` | 7.5 s packet | steps |
 
-## 3 · Heart rate — `engine/algo/hr/`, `engine/algo/max_min_avg_hr/`
+## 3 · Heart rate — `engine/algo/heart_rate.py`, `engine/algo/hr_statistics.py`
 
 ```
 HR per beat → capped-step smoothing → median per 3 s → exponential smoothing (decay 0.7)
@@ -99,7 +99,7 @@ HR per beat → capped-step smoothing → median per 3 s → exponential smoothi
 | Min HR | 1st percentile |
 | Avg HR | Mean of the plausible values |
 
-## 4 · Zones & training load — `engine/algo/training_load/`
+## 4 · Zones & training load — `engine/algo/training_load.py`
 
 **Inputs, per upload.** One account tests many athletes, so the **account profile is never used**:
 each value comes from the upload form (the name also from the file name), otherwise it is "—".
@@ -124,7 +124,7 @@ TRIMP = Σ minutes × r × 0.64 × e^(k·r)        k = 1.92 men, 1.67 women
 
 HR below resting adds nothing. **Training intensity** = TRIMP per minute of recording.
 
-## 5 · Movement load — `engine/algo/movement_load/`
+## 5 · Movement load — `engine/algo/movement_load.py`
 
 ```
 RMS per 250 ms → exponential smoothing (decay 0.9) → mean per 3 s → gaps filled from neighbours

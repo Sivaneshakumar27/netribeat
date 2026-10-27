@@ -46,10 +46,10 @@ src = ["src"]
 # Reference engine code (SES-4 / SES-7), kept as written: never reformat it.
 extend-exclude = [
     "src/netribeat/hex_decoder/decode_hex.py",
-    "src/netribeat/engine/algo/hr",
-    "src/netribeat/engine/algo/max_min_avg_hr",
-    "src/netribeat/engine/algo/training_load",
-    "src/netribeat/engine/algo/movement_load",
+    "src/netribeat/engine/algo/heart_rate.py",
+    "src/netribeat/engine/algo/hr_statistics.py",
+    "src/netribeat/engine/algo/training_load.py",
+    "src/netribeat/engine/algo/movement_load.py",
 ]
 
 [tool.ruff.lint]
@@ -65,19 +65,19 @@ mypy_path = "src"
 packages = ["netribeat"]
 exclude = [
     'src/netribeat/hex_decoder/decode_hex\.py',
-    'src/netribeat/engine/algo/hr',
-    'src/netribeat/engine/algo/max_min_avg_hr',
-    'src/netribeat/engine/algo/training_load',
-    'src/netribeat/engine/algo/movement_load',
+    'src/netribeat/engine/algo/heart_rate.py',
+    'src/netribeat/engine/algo/hr_statistics.py',
+    'src/netribeat/engine/algo/training_load.py',
+    'src/netribeat/engine/algo/movement_load.py',
 ]
 
 [[tool.mypy.overrides]]
 module = [
     "netribeat.hex_decoder.decode_hex",
-    "netribeat.engine.algo.hr.*",
-    "netribeat.engine.algo.max_min_avg_hr.*",
-    "netribeat.engine.algo.training_load.*",
-    "netribeat.engine.algo.movement_load.*",
+    "netribeat.engine.algo.heart_rate",
+    "netribeat.engine.algo.hr_statistics",
+    "netribeat.engine.algo.training_load",
+    "netribeat.engine.algo.movement_load",
     "pandas",
     "pandas.*",
 ]

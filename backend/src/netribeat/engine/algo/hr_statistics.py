@@ -5,7 +5,7 @@ Port of lib-netrin `metrics/heart_rate.py`.
 
 import numpy as np
 
-from netribeat.engine.algo.hr.heart_rate import MAX_HR, MIN_HR
+from netribeat.engine.algo.heart_rate import MAX_HR, MIN_HR
 
 
 def plausible(hr):
