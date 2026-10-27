@@ -42,10 +42,13 @@ export default function UploadPage() {
   }, [admin]);
 
   function addFiles(list) {
+    // Copy now: the input is cleared right after this call, which empties the live FileList
+    // before React runs the state update below.
+    const picked = Array.from(list || []);
     setResults(null);
     setFiles((cur) => {
       const names = new Set(cur.map((f) => f.name + f.size));
-      return [...cur, ...Array.from(list).filter((f) => !names.has(f.name + f.size))];
+      return [...cur, ...picked.filter((f) => !names.has(f.name + f.size))];
     });
   }
 
