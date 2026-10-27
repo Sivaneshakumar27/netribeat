@@ -45,7 +45,7 @@ export default function DashboardPage() {
       {!state.loading && !state.items.length ? (
         <section className="nb-card nb-empty-card">
           <h2 className="nb-card-title">No recordings yet</h2>
-          <p className="nb-muted">Upload a Movesense <b>.json</b> (ECG or RR) or <b>.csv</b> (ECG) file to see heart rate, HRV and training load.</p>
+          <p className="nb-muted">Upload a Synapse sensor hex file (<b>.txt</b>) to see heart rate, HRV, training load and movement load.</p>
           <Link className="nb-btn nb-btn-primary" to="/upload">Upload a recording</Link>
         </section>
       ) : null}
