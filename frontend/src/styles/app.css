@@ -200,6 +200,19 @@ body { margin: 0; font-family: var(--font-sans); font-size: 14px; line-height: 2
 .nb-chart-mark-label { font-size: 9.5px; fill: var(--ink-muted); }
 .nb-chart-cross { stroke: var(--ink-muted); stroke-dasharray: 3 3; }
 .nb-chart-mean { stroke: var(--ink-muted); stroke-dasharray: 5 4; }
+.nb-chart svg.is-zoomable { cursor: crosshair; touch-action: pan-y; }
+.nb-chart svg.is-panning { cursor: grabbing; }
+.nb-chart-tools { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-bottom: 4px; }
+.nb-chart-tools button { min-width: 28px; height: 26px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-raised); color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.nb-chart-tools button:hover:not(:disabled) { border-color: var(--accent-fill); color: var(--accent); }
+.nb-chart-tools button:disabled { opacity: .4; cursor: default; }
+.nb-chart-range { margin-right: auto; font-size: 11.5px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.nb-chart-select { fill: var(--accent-fill); fill-opacity: .12; stroke: var(--accent-fill); stroke-width: 1; }
+.nb-chart-nav { display: block; margin-top: 6px; touch-action: none; cursor: pointer; }
+.nb-chart-nav-bg { fill: var(--surface-sunken); stroke: var(--line); }
+.nb-chart-nav-shade { fill: var(--ink); opacity: .06; }
+.nb-chart-nav-window { fill: var(--accent-fill); fill-opacity: .10; stroke: var(--accent-fill); stroke-width: 1.5; cursor: grab; }
+.nb-chart-nav-handle { fill: var(--accent-fill); cursor: ew-resize; }
 .nb-tooltip { position: absolute; pointer-events: none; min-width: 140px; padding: 7px 9px; background: var(--surface-raised); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .15); z-index: 2; }
 .nb-tooltip-x { color: var(--ink-muted); margin-bottom: 2px; }
 .nb-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
