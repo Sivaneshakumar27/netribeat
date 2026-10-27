@@ -36,8 +36,8 @@ from netribeat.db import init_db, make_engine, make_sessionmaker
 from netribeat.email.service import EmailSender, build_email_sender
 from netribeat.email.validation import INVALID_EMAIL_MESSAGE
 from netribeat.health.router import router as health_router
-from netribeat.recordings.router import router as recordings_router
-from netribeat.recordings.service import MAX_FILE_BYTES, MAX_FILES
+from netribeat.sessions import MAX_FILE_BYTES, MAX_FILES
+from netribeat.sessions import router as sessions_router
 
 log = logging.getLogger(__name__)
 
@@ -206,7 +206,7 @@ def create_app(
         auth_router,
         users_router,
         admin_router,
-        recordings_router,
+        sessions_router,
     ):
         app.include_router(router, prefix=API_PREFIX)
     return app

@@ -105,10 +105,10 @@ engine/algo/
 metrics/           derived_metrics.py  HR + training load + movement load for a session (reference)
                    hrv_metrics.py      Kubios-style HRV report: sample, correction, TD/FD/NL, ANS
                    session_metrics.py  the full output stored per session (metrics + signals)
-recordings/        models.py · schemas.py · service.py · router.py — the /api/v1/sessions API
+sessions.py        the /api/v1/sessions API in one file: table, schemas, rules, routes
 ```
 
-Flow: `hex_decoder → rr_interval → preprocessing → engine/algo → metrics → recordings (database)`.
+Flow: `hex_decoder → rr_interval → preprocessing → engine/algo → metrics → sessions.py (database + API)`.
 The reference engine code (decoder, heart rate, zones, training and movement load) keeps its
 original function code; only its location and imports changed.
 

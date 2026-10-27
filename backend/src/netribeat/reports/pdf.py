@@ -14,7 +14,7 @@ from __future__ import annotations
 import io
 from datetime import datetime
 from itertools import pairwise
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import matplotlib
 
@@ -29,7 +29,9 @@ from matplotlib.ticker import FuncFormatter
 
 from netribeat.hex_decoder.decode_hex import IST
 from netribeat.hex_decoder.reader import athlete_name
-from netribeat.recordings.models import Recording
+
+if TYPE_CHECKING:
+    from netribeat.sessions import Recording
 
 # Brand colours (frontend tokens.css, light theme)
 INK = "#141414"

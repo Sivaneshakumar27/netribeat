@@ -6,9 +6,11 @@ import csv
 import io
 import json
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from netribeat.recordings.models import Recording
+if TYPE_CHECKING:
+    from netribeat.sessions import Recording
+
 
 CSV_DATASETS = ("metrics", "hr", "rr", "rms")
 
